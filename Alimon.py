@@ -1,14 +1,15 @@
+import math
 class Alimon:
-    def __init__(self, name, capture_rate, level=1):
+    def __init__(self, name, capture_rate, encounter_rate, level=1):
         self.name = name
         self.level = level
         self.exp = 0
         self.is_shiny = False
+        self.capture_rate = round(capture_rate/1000,3)
+        self.encounter_rate = round(encounter_rate/1000, 3)
 
     def __repr__(self):
-        description = "This is {name}, it is level {level} and is {exp} from leveling up.".format(name=self.name,
-                                                                                                  level=self.level,
-                                                                                                  exp=self.exp)
+        description = "This is {name}, it is level {level} and is {exp} EXP from leveling up. It has a {capture_rate} capture rate.".format(name=self.name,  level=self.level, exp=self.exp, capture_rate = self.capture_rate)
         if (self.is_shiny):
             description += " And it is SHINY!"
         return description
