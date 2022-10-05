@@ -9,7 +9,7 @@ import random
 #CHANGE LOG 10/5/2022:
 #   Added Bag Logic, Item Class, AliBall Class
 #   Added functions for adding to bag
-#
+#   Revamped Main Menu to accomodate users. Simplified now.
 #
 #version 0.02
 #CHANGE LOG 10/4/2022:
@@ -30,6 +30,7 @@ import random
 #2.Items
 #   -Use Items
 #   -Balls
+#      -Different Balls
 #   -Potions
 #   -Misc
 #   -Key Items
@@ -38,6 +39,7 @@ import random
 #4.Other
 #   -NPC
 #   -Maps
+#   -Alidex viewing
 
 
 # ---------------------------------------------------------------------------------------------------------------
