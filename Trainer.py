@@ -1,9 +1,11 @@
+from Item import Item
+from AliBall import AliBall
 class Trainer:
     # Trainer Contructor
     def __init__(self, name, gender):
         self.name = name
         self.gender = gender
-        self.bag = {}
+        self.bag = {"ALIBALL" : AliBall(), "POOOPIE": Item("POOPIE", "POOP", "CHICKEN")}
         self.poke_team = []
 
     # Description of Trainer
@@ -18,6 +20,21 @@ class Trainer:
                                                                             num_pokemon=num_of_pokemon)
         return description
 
-    def add_to_bag(self):
-        def encounter_pokemon(self):
-            pass
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          ADD TO BAG FUNCTION
+    #   -Takes in Self, an Item, and NUMBER OF ITEM to be added
+    #   -Checks if item is an Item object
+    #       -If Yes, Checks if the item already exist in the bag
+    #           -If Yes, adds number_of_item to the value of item that is already in the bag
+    #           -If No, adds number_of_item to the item object and puts it in the Bag
+    #       -If No, Prints error message and sends them back to the last menu
+    # ---------------------------------------------------------------------------------------------------------------
+    def add_to_bag(self, item, number_of_item):
+        if(isinstance(item, Item)):
+            if(item.name in self.bag):
+                self.bag[item.name].count += number_of_item
+            else:
+                item.count += number_of_item
+                self.bag[item.name] = item
+        else:
+            print("Sorry That Is Not A Valid Item")
