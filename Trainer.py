@@ -5,8 +5,9 @@ class Trainer:
     def __init__(self, name, gender):
         self.name = name
         self.gender = gender
-        self.bag = {"ALIBALL" : AliBall(), "POOOPIE": Item("POOPIE", "POOP", "CHICKEN")}
+        self.bag = {"ALIBALL" : AliBall(), "POOOPIE": Item("POOPIE", "POOP", "CHICKEN", 10, 2)}
         self.poke_team = []
+        self.pc = []
 
     # Description of Trainer
     def __repr__(self):
@@ -16,7 +17,7 @@ class Trainer:
             pronoun = "he"
         else:
             pronoun = "she"
-        description = "This is {name}, {pronoun} has {num_pokemon}!".format(name=self.name, pronoun=pronoun,
+        description = "This is {name}, {pronoun} has {num_pokemon} Alimon(s)!".format(name=self.name, pronoun=pronoun,
                                                                             num_pokemon=num_of_pokemon)
         return description
 

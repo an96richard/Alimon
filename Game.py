@@ -2,9 +2,31 @@ from Trainer import Trainer
 from Alimon import Alimon
 from Item import Item
 from AliBall import AliBall
+import time
 import random
-#This is the Game class used to interact with the player
-#This class should be used to take input and call proper functions from other classes as well as store data properly.
+################################################################################################################################
+#                                                                                                                              #
+#                                                                                                                              #
+#    .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .-----------------.   #
+#   | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |   #
+#   | |      __      | || |   _____      | || |     _____    | || | ____    ____ | || |     ____     | || | ____  _____  | |   #
+#   | |     /  \     | || |  |_   _|     | || |    |_   _|   | || ||_   \  /   _|| || |   .'    `.   | || ||_   \|_   _| | |   #
+#   | |    / /\ \    | || |    | |       | || |      | |     | || |  |   \/   |  | || |  /  .--.  \  | || |  |   \ | |   | |   #
+#   | |   / ____ \   | || |    | |   _   | || |      | |     | || |  | |\  /| |  | || |  | |    | |  | || |  | |\ \| |   | |   #
+#   | | _/ /    \ \_ | || |   _| |__/ |  | || |     _| |_    | || | _| |_\/_| |_ | || |  \  `--'  /  | || | _| |_\   |_  | |   #
+#   | ||____|  |____|| || |  |________|  | || |    |_____|   | || ||_____||_____|| || |   `.____.'   | || ||_____|\____| | |   #
+#   | |              | || |              | || |              | || |              | || |              | || |              | |   #
+#   | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |   #
+#   '----------------'  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'     #
+#                                                                                                                              #
+#                              Welcome To Alimon, a new adventure created by Richie An                                         #
+################################################################################################################################
+#version 0.05
+#CHANGE LGG 10/17/2022
+#   Added new View Bag Functions and logic
+#   Implmented Use AliBall Function to properly catch Alimons and store them in trainer team and PC
+#   Fixed Encounter to generate new Alimon object on each encounter, and logic for view bag and use items
+#
 #version 0.03
 #CHANGE LOG 10/5/2022:
 #   Added Bag Logic, Item Class, AliBall Class
@@ -22,11 +44,6 @@ import random
 #       -Attacks
 #       -HP
 #       -EXP Gain
-#   -Run Option
-#   -Item Usage
-#       -Capturing
-#           -Ball Usage
-#       -Healing
 #2.Items
 #   -Use Items
 #   -Balls
@@ -40,6 +57,8 @@ import random
 #   -NPC
 #   -Maps
 #   -Alidex viewing
+#   -Story
+#   -Events
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -55,7 +74,7 @@ import random
 #
 # ---------------------------------------------------------------------------------------------------------------
 class Game:
-    ali_list = {"MEW": Alimon("MEW", 345, 1), "POOP": Alimon("POOP", 345, 999)}
+    ali_list = {"MEW": Alimon("MEW", 0.345, 1), "POOP": Alimon("POOP", 0.03, 999)}
     menu_choices = ["Create Alimon" ,"Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag" ,"Exit"]
     item_list = {"POKEBALL" : ["BALL", 0, ]}
     main_trainer = None
@@ -76,7 +95,7 @@ class Game:
         name = input().upper()
         self.main_trainer = Trainer(name, gender)
         print("It is very nice to meet you {name}, I am Prof. Broke. I am a researcher here in the Pokemon world. I'm sure you know how to be a trainer so here are some pokeballs.".format(name=self.main_trainer.name))
-        self.main_trainer.add_to_bag(AliBall(), 5)
+        self.main_trainer.add_to_bag(AliBall(), 1)
 
 
 
@@ -125,9 +144,10 @@ class Game:
                     self.print_trainer_info()
                 #IF answer is PRINT <Alimon> INFO separate the alimon name and then call print_alimon_info on it
                 #TODO: Add AliDex viewer to eliminate this choice
-                #elif (current_choice == "PRINT <Alimon> INFO"):
-                #    print("What Alimon Would You Like To See?")
-                #    self.print_alimon_info(alimon_name)
+                elif (current_choice == "Print <Alimon> Info"):
+                     print("What Alimon Would You Like To See?")
+                     alimon_name = input().upper().strip()
+                     self.print_alimon_info(alimon_name)
                 # IF answer is BAG call create BAG function which will turn on the BAG menu
                 elif (current_choice == "Bag"):
                     self.view_bag(self.main_trainer, False)
@@ -228,22 +248,35 @@ class Game:
     #                                          ENCOUNTER FUNCTION
     #   -Takes in Self and trainer as a parameter
     #   -Creates a new Weighted list consisting of all Alimons in the Alidex and their respective encounter rates
-    #   -Chooses an Alimon from the Alidex randomly with weighted values and then prints out Encounter text
+    #   -Chooses an Alimon from the Alidex randomly with weighted values
+    #   -Create new Alimon object for trainer to interact with
     #   -Opens a Menu prompting the User to choose what action they would like to do
     #       -If Battle (WIP)
-    #       -If BAG (WIP)
+    #       -If BAG call the view bag in battle function
+    #           -View Bag Function can determine if encounter ends or not
     #       -If RUN, make correct choice = 1 and then return them to the last menu
     #       -If invalid choice, prints error message and promps them again about the encounter.
     # ---------------------------------------------------------------------------------------------------------------
     def encounter(self, trainer):
+
+        #Create new Alimon For Trainer to battle or catch
         weighted_list = []
         for alimon in self.ali_list:
             weighted_list.append(self.ali_list[alimon].encounter_rate)
-        encountered_alimon = random.choices(list(self.ali_list), weights=weighted_list, k=1)
-        print(encountered_alimon[0])
+        encountered_alimon = self.ali_list[self.random_choice(self.ali_list, weighted_list, 1)[0]]
+        is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate,1-encountered_alimon.shiny_rate], 1)[0]
+        level = self.random_choice(range(1,51), None, 1)[0]
+        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate, level)
+        new_alimon.is_shiny = is_shiny
+        print(new_alimon)
+
+        #Prompt Trainer
         correct_choice = 0
         while (correct_choice == 0):
-            print("You Have Encountered {name}! What Would You Like To Do?".format(name=encountered_alimon[0]))
+            shiny_prompt = ""
+            if(is_shiny):
+                shiny_prompt = " AND ITS SHINY!!!"
+            print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level= level) + shiny_prompt)
             print("Battle (not Implemented)\nBag\nRun")
             try:
                 answer = input().upper().strip()
@@ -252,22 +285,24 @@ class Game:
             if (answer == "BATTLE"):
                 print("Sorry this has not been implemented yet, please RUN or BAG")
             elif (answer == "BAG"):
-                self.view_bag(trainer, True)
+                end_battle = self.view_bag_in_battle(trainer, True, None, new_alimon)
+                if(end_battle):
+                    correct_choice=1
             elif (answer == "RUN"):
-                correct_choice == 1
+                correct_choice = 1
             else:
                 print("Sorry that is not a valid option, please choose something else")
 
     # ---------------------------------------------------------------------------------------------------------------
-    #                                          VIEW BAG FUNCTION
-    #   -Takes in Self, current Trainer, and in_encoutner boolean
+    #                                          VIEW BAG OUT OF BATTLE FUNCTION
+    #   -Takes in Self, and current Trainer
     #   -Checks bag is empty
-    #       -If Yes, Prints All Items In Bag with a pointer to currently selected item
+    #       -If No, Prints All Items In Bag with count > 0 and a pointer to currently selected item
     #           -Prompts user to navigate the menu or go back
     #           -Selector symbol will move accordingly to user input
-    #       -If No, Prints error message and sends them back to the last menu
+    #       -If Yes, Prints error message and sends them back to the last menu
     # ---------------------------------------------------------------------------------------------------------------
-    def view_bag(self, trainer, in_encounter):
+    def view_bag_out_battle(self, trainer):
         if (len(trainer.bag) == 0):
             print("Oh no! Your Bag is Empty, Go Create Some!")
         else:
@@ -275,38 +310,184 @@ class Game:
             choice_num = 0
             select_num = 0
             finish_view = False
-            while(not finish_view):
+            while (not finish_view):
                 for key, value in trainer.bag.items():
-                    if(select_num == choice_num):
-                        print(">{choice_num}.".format(choice_num = choice_num) + key + "            x" + str(trainer.bag[key].count))
-                        choice_num+=1
+                    if (select_num == choice_num):
+                        print(">{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
+                            trainer.bag[key].count))
+                        choice_num += 1
                         current_item = trainer.bag[key]
                     else:
-                        print("{choice_num}.".format(choice_num = choice_num)+ key + "            x" + str(trainer.bag[key].count))
-                        choice_num+=1
+                        print("{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
+                            trainer.bag[key].count))
+                        choice_num += 1
                 choice_num = 0
                 print("Back\n")
                 print("---------------------------------------------------------------------------------------")
                 print(current_item.desc + "\n")
                 print("---------------------------------------------------------------------------------------")
-                print("What would you like to do? \nDOWN \nUP \nENTER \nBACK")
+                print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
                 try:
                     answer = input().strip().upper()
                 except:
                     print("That is not a valid choice.")
-                if(answer == "DOWN"):
-                    if(select_num == num_of_items_in_bag -1):
+                if (answer == "DOWN"):
+                    if (select_num == num_of_items_in_bag - 1):
                         select_num = 0
                     else:
-                        select_num +=1
-                elif(answer == "UP"):
+                        select_num += 1
+                elif (answer == "UP"):
                     if (select_num == 0):
-                        select_num = num_of_items_in_bag -1
+                        select_num = num_of_items_in_bag - 1
                     else:
                         select_num -= 1
-                elif(answer == "ENTER"):
-                    continue
-                elif(answer == "BACK"):
-                    finish_view = True
+                elif (answer == "USE"):
+                    print(current_item.name)
+                    catch_bool = self.use_item(current_item, False)
+                    if (current_item.count == 0):
+                        trainer.bag.pop(current_item.name)
+                    return caught
+                elif (answer == "BACK"):
+                    return False
                 else:
                     print("Sorry that is not a valid choice.")
+
+
+
+    # -----------------------------------------------------------------------------------------------------------------------------
+    #                                          VIEW BAG IN BATTLE FUNCTION
+    #   -This function is essentially an overloaded View Bag Out Of Battle function that is used specifically for catching Alimons
+    #   -Takes in Self, current Trainer, current active Alimon, and current opposing Alimon
+    #   -Checks bag is empty
+    #       -If No, Prints All Items In Bag with a pointer to currently selected item
+    #           -Prompts user to navigate the menu or go back
+    #           -Selector symbol will move accordingly to user input
+    #       -If Yes, Prints error message and sends them back to the last menu
+    # -----------------------------------------------------------------------------------------------------------------------------
+    def view_bag_in_battle(self, trainer, current_active_alimon, current_opp_alimon):
+        if (len(trainer.bag) == 0):
+            print("Oh no! Your Bag is Empty, Go Create Some!")
+        else:
+            num_of_items_in_bag = len(trainer.bag)
+            choice_num = 0
+            select_num = 0
+            finish_view = False
+            while (not finish_view):
+                for key, value in trainer.bag.items():
+                    if (select_num == choice_num):
+                        print(">{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
+                            trainer.bag[key].count))
+                        choice_num += 1
+                        current_item = trainer.bag[key]
+                    else:
+                        print("{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
+                            trainer.bag[key].count))
+                        choice_num += 1
+                choice_num = 0
+                print("Back\n")
+                print("---------------------------------------------------------------------------------------")
+                print(current_item.desc + "\n")
+                print("---------------------------------------------------------------------------------------")
+                print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
+                try:
+                    answer = input().strip().upper()
+                except:
+                    print("That is not a valid choice.")
+                if (answer == "DOWN"):
+                    if (select_num == num_of_items_in_bag - 1):
+                        select_num = 0
+                    else:
+                        select_num += 1
+                elif (answer == "UP"):
+                    if (select_num == 0):
+                        select_num = num_of_items_in_bag - 1
+                    else:
+                        select_num -= 1
+                elif (answer == "USE"):
+                    print(current_item.name)
+                    catch_bool = self.use_item(current_item, True)
+                    caught = False
+                    if (catch_bool):
+                        caught = self.catching_alimon(current_item, current_opp_alimon, trainer)
+
+                    if (current_item.count == 0):
+                        trainer.bag.pop(current_item.name)
+
+                    return caught
+                elif (answer == "BACK"):
+                    return False
+                else:
+                    print("Sorry that is not a valid choice.")
+
+
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          USE ITEM FUNCTION
+    #   -Takes in self, item trying to be used, and if we are currently in an encounter
+    #   -Checks what type of item is being used and correctly uses that item
+    #       -If item is a ball and can be used, the function returns true so we can call the catch function
+    #   -After successful use, subtract 1x from item count and return
+    # ---------------------------------------------------------------------------------------------------------------
+    def use_item(self, item, in_encounter):
+        if(item.type == "BALL"):
+            if(in_encounter == False):
+                print("Sorry You Cannot Use That Item Right Now.")
+                return False
+            else:
+                self.main_trainer.bag[item.name].count -= 1
+                return True
+
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          CATCH ALIMON FUNCTION
+    #   -Takes in self, item trying to be used, trainer, alimon that needs to be caught
+    #   -First decides if alimon will be caught using random generator based on the alimon's capture rate
+    #       -If Yes, will print shake 4 times and print respective message and returns true
+    #       -If No
+    #           -Randomly chooses a number of shakes
+    #           -Prints respective message
+    # ---------------------------------------------------------------------------------------------------------------
+    def catching_alimon(self, item, alimon, trainer):
+        caught_bool = self.random_choice([True, False], [alimon.capture_rate * item.capture_rate_multiplier, 1 - (alimon.capture_rate * item.capture_rate_multiplier)],1)[0]
+        print("{name} used {item}!".format(name = trainer.name, item = item.name))
+        catch_message = ["Not Even Close Bro", "Oops Try Again", "Close But No Sauce", "Lmao You Thought", "WE CAUGHT {alimon_name}!".format(alimon_name= alimon.name)]
+        if(caught_bool == False):
+            num_shakes = random.randint(0,3)
+            shake = 0
+            while(shake < num_shakes):
+                time.sleep(2)
+                print("*shake*")
+                shake+=1
+            time.sleep(2)
+            print(catch_message[num_shakes])
+            time.sleep(2)
+            return False
+        else:
+            shake = 0
+            while (shake < 3):
+                time.sleep(2)
+                print("*shake*")
+                shake+=1
+            time.sleep(2)
+            print("*CLICK")
+            time.sleep(2)
+            print(catch_message[4])
+            time.sleep(2)
+            if(len(trainer.poke_team) < 7):
+                print("{alimon} has been added to your team!".format(alimon = alimon.name))
+                trainer.poke_team.append(alimon)
+            else:
+                print("You Dont Have Enough Space On Your Team, {alimon} has been sent to your PC".format(alimon = alimon.name))
+                trainer.pc.append(alimon)
+
+            time.sleep(2)
+            return True
+
+
+
+
+    def random_choice(self, target_list, weighted_list, num_of_choices):
+        if(len(target_list) == 0):
+            print("Your list is empty")
+        elif(num_of_choices == 0):
+            print("Please specify how many choices you want")
+        else:
+            return random.choices(list(target_list), weights=weighted_list, k=num_of_choices)
