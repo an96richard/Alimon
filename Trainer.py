@@ -2,6 +2,7 @@ from Item import Item
 from AliBall import AliBall
 class Trainer:
     # Trainer Contructor
+    #TODO: change poke team to aliTeam
     def __init__(self, name, gender):
         self.name = name
         self.gender = gender

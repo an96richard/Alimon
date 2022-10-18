@@ -38,7 +38,7 @@ import random
 #   Added Beggining stages code for Alidex, Encounters, Trainer info, and Alimon info.
 #   Added functions for encounters, creating and storing alimons, and printing necessary information
 #------------------------------------------------------
-#TODO:
+#TODO:  IMPLEMENT SAVE AND LOAD, FULL ALIDEX, BATTLE SYSTEM, OTHER ITEMS, EXP SYSTEM
 #1.Create Encounter Logic
 #   -Battling
 #       -Attacks
@@ -104,6 +104,7 @@ class Game:
         select_num = 1
         end_game = False
         while (not end_game):
+            #MENU CHOICES PRINTING LOGIC
             for choice in self.menu_choices:
                 if (select_num == choice_num):
                     print(">{choice_num}.".format(choice_num=choice_num) + choice)
@@ -166,7 +167,9 @@ class Game:
 
     #---------------------------------------------------------------------------------------------------------------
     #                                          ALIMON CREATION FUNCTION
-    #   -Takes in Self as a parameter
+    #   @param Self
+    #   @return nothing runs until it ends
+    #   TODO: This function is only here for testing purposes and will be removed in the final version
     #   -Prompts user for Name, Base Level, Capture Rate, and Encounter Rate
     #   -Creates a new Alimon object and appends it to the "Ali_Dex"
     #---------------------------------------------------------------------------------------------------------------
@@ -211,7 +214,8 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          PRINT ALIDEX FUNCTION
-    #   -Takes in Self as a parameter
+    #   @param Self
+    #   @return nothing runs until it ends
     #   -Checks if Length of Pokedex is > 0
     #       -If Yes, Prints All Keys in the "ali_list" dictionary
     #       -If No, Prints error message and sends them back to the last menu
@@ -225,7 +229,8 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          PRINT TRAINER INFO FUNCTION
-    #   -Takes in Self as a parameter
+    #   @param Self
+    #   @return nothing runs until it ends
     #   -Prints Main Trainer info
     # ---------------------------------------------------------------------------------------------------------------
     def print_trainer_info(self):
@@ -233,7 +238,8 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          PRINT ALIMON INFO FUNCTION
-    #   -Takes in Self and Alimon "name" as a parameter
+    #   @param Self and Alimon "name"
+    #   @return nothing runs until it ends
     #   -Checks if Alimon exists in the Alidex
     #       -If Yes, Prints __repr__ function of the Alimon
     #       -If No, Prints error message and sends them back to the last menu
@@ -246,7 +252,8 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          ENCOUNTER FUNCTION
-    #   -Takes in Self and trainer as a parameter
+    #   @param Self and trainer as a parameter
+    #   @return nothing runs until it ends
     #   -Creates a new Weighted list consisting of all Alimons in the Alidex and their respective encounter rates
     #   -Chooses an Alimon from the Alidex randomly with weighted values
     #   -Create new Alimon object for trainer to interact with
@@ -295,7 +302,8 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          VIEW BAG OUT OF BATTLE FUNCTION
-    #   -Takes in Self, and current Trainer
+    #   @param Self, and current Trainer
+    #   @return nothing, runs until it ends
     #   -Checks bag is empty
     #       -If No, Prints All Items In Bag with count > 0 and a pointer to currently selected item
     #           -Prompts user to navigate the menu or go back
@@ -303,14 +311,17 @@ class Game:
     #       -If Yes, Prints error message and sends them back to the last menu
     # ---------------------------------------------------------------------------------------------------------------
     def view_bag_out_battle(self, trainer):
+        #Empty bag Check
         if (len(trainer.bag) == 0):
             print("Oh no! Your Bag is Empty, Go Create Some!")
         else:
+            #Bag contents printing logic
             num_of_items_in_bag = len(trainer.bag)
             choice_num = 0
             select_num = 0
             finish_view = False
             while (not finish_view):
+                # Basically for every item if choice_num (User hovering certain item) and select_num (current item being iterated on) match, then it will print a ">" otherwise it prints it normally
                 for key, value in trainer.bag.items():
                     if (select_num == choice_num):
                         print(">{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
@@ -327,6 +338,8 @@ class Game:
                 print(current_item.desc + "\n")
                 print("---------------------------------------------------------------------------------------")
                 print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
+
+                #USER INPUT LOGIC
                 try:
                     answer = input().strip().upper()
                 except:
@@ -343,10 +356,11 @@ class Game:
                         select_num -= 1
                 elif (answer == "USE"):
                     print(current_item.name)
-                    catch_bool = self.use_item(current_item, False)
+                    #Calls the use item function on the current item selected
+                    self.use_item(current_item, False)
+                    #If the current item's count == 0, pop it from the list so it doesnt get printed
                     if (current_item.count == 0):
                         trainer.bag.pop(current_item.name)
-                    return caught
                 elif (answer == "BACK"):
                     return False
                 else:
@@ -357,7 +371,8 @@ class Game:
     # -----------------------------------------------------------------------------------------------------------------------------
     #                                          VIEW BAG IN BATTLE FUNCTION
     #   -This function is essentially an overloaded View Bag Out Of Battle function that is used specifically for catching Alimons
-    #   -Takes in Self, current Trainer, current active Alimon, and current opposing Alimon
+    #   @param Self, current Trainer, current active Alimon, and current opposing Alimon
+    #   @return nothing, runs until it ends
     #   -Checks bag is empty
     #       -If No, Prints All Items In Bag with a pointer to currently selected item
     #           -Prompts user to navigate the menu or go back
@@ -365,14 +380,17 @@ class Game:
     #       -If Yes, Prints error message and sends them back to the last menu
     # -----------------------------------------------------------------------------------------------------------------------------
     def view_bag_in_battle(self, trainer, current_active_alimon, current_opp_alimon):
+        #Empty Bag Check
         if (len(trainer.bag) == 0):
             print("Oh no! Your Bag is Empty, Go Create Some!")
         else:
+            #Bag contents printing logic
             num_of_items_in_bag = len(trainer.bag)
             choice_num = 0
             select_num = 0
             finish_view = False
             while (not finish_view):
+                #Basically for every item if choice_num (User hovering certain item) and select_num (current item being iterated on) match, then it will print a ">" otherwise it prints it normally
                 for key, value in trainer.bag.items():
                     if (select_num == choice_num):
                         print(">{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
@@ -389,6 +407,8 @@ class Game:
                 print(current_item.desc + "\n")
                 print("---------------------------------------------------------------------------------------")
                 print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
+
+                #USER INPUT LOGIC
                 try:
                     answer = input().strip().upper()
                 except:
@@ -405,11 +425,17 @@ class Game:
                         select_num -= 1
                 elif (answer == "USE"):
                     print(current_item.name)
+                    #catch_bool is used to check if trainer is attempting to catch an Alimon
                     catch_bool = self.use_item(current_item, True)
+
+                    #Caught is here to see if the battle needs to end
                     caught = False
+
+                    #If Trainer is attempting to catch an Alimon, call the catching function
                     if (catch_bool):
                         caught = self.catching_alimon(current_item, current_opp_alimon, trainer)
 
+                    #If the item count is now equal to 0, pop it from the list so it doesnt print
                     if (current_item.count == 0):
                         trainer.bag.pop(current_item.name)
 
@@ -422,7 +448,9 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          USE ITEM FUNCTION
-    #   -Takes in self, item trying to be used, and if we are currently in an encounter
+    #   @param self, item trying to be used, and if we are currently in an encounter
+    #   @return currently returns True if Ball was used, False if not
+    #   TODO: make item logic for other items (healing, key items, etc)
     #   -Checks what type of item is being used and correctly uses that item
     #       -If item is a ball and can be used, the function returns true so we can call the catch function
     #   -After successful use, subtract 1x from item count and return
@@ -438,17 +466,24 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          CATCH ALIMON FUNCTION
-    #   -Takes in self, item trying to be used, trainer, alimon that needs to be caught
+    #   @param self, item trying to be used, trainer, alimon that needs to be caught
+    #   @return True or False depending on if Alimon is caught
     #   -First decides if alimon will be caught using random generator based on the alimon's capture rate
     #       -If Yes, will print shake 4 times and print respective message and returns true
     #       -If No
     #           -Randomly chooses a number of shakes
     #           -Prints respective message
+    #
     # ---------------------------------------------------------------------------------------------------------------
     def catching_alimon(self, item, alimon, trainer):
+
+        #Decide wether or not the Alimon is caught using it's capture rate multiplied by Ball multiplier
         caught_bool = self.random_choice([True, False], [alimon.capture_rate * item.capture_rate_multiplier, 1 - (alimon.capture_rate * item.capture_rate_multiplier)],1)[0]
         print("{name} used {item}!".format(name = trainer.name, item = item.name))
+        #Instantiate a message list
         catch_message = ["Not Even Close Bro", "Oops Try Again", "Close But No Sauce", "Lmao You Thought", "WE CAUGHT {alimon_name}!".format(alimon_name= alimon.name)]
+
+        #If caught_bool ends up false, simulate ball shakes and print respective message
         if(caught_bool == False):
             num_shakes = random.randint(0,3)
             shake = 0
@@ -460,6 +495,8 @@ class Game:
             print(catch_message[num_shakes])
             time.sleep(2)
             return False
+
+        #If caught_bool ends up True, shake 3 times and click to simulate capture, then append new Alimon object to Trainers team or PC
         else:
             shake = 0
             while (shake < 3):
@@ -481,9 +518,13 @@ class Game:
             time.sleep(2)
             return True
 
-
-
-
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    #                                          RANDOM CHOICE FUNCTION
+    #   @param self, target list you want to choose from, optional weighted list if you want the values weight, and then the number of choices you want picked
+    #   @return list containing the random choice(s) chosen
+    #   -If target list is empty or num of choices = 0, print an error
+    #   -Else uses random.choices() to pick k values from target_list using weights from weight_list and returns them.
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------
     def random_choice(self, target_list, weighted_list, num_of_choices):
         if(len(target_list) == 0):
             print("Your list is empty")
