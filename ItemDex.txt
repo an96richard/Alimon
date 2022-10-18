@@ -1,0 +1,4 @@
+AliBall+BALL+This is an ordinary AliBall used to catch Alimons.+10+1
+Great AliBall+BALL+A Great AliBall, higher capture rate than a regular AliBall.+20+1.2
+Ultra AliBall+BALL+An Ultra AliBall, greatly increases capture rate!+30+1.5
+Master AliBall+BALL+Woah! A powerful ball that will catch any Alimon guaranteed!+99999+100

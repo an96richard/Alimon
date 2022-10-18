@@ -1,13 +1,13 @@
 import math
 class Alimon:
     shiny_rate = 0.00001
-    def __init__(self, name, capture_rate, encounter_rate, level=1):
+    def __init__(self, name, capture_rate, encounter_rate, level=1, exp =0, is_shiny = False):
         self.name = name
         self.level = level
-        self.exp = 0
-        self.is_shiny = False
+        self.exp = exp
+        self.is_shiny = is_shiny
         self.capture_rate = round(capture_rate,3)
-        self.encounter_rate = round(encounter_rate/1000, 3)
+        self.encounter_rate = round(encounter_rate, 3)
 
 
     def __repr__(self):
