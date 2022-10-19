@@ -1,6 +1,8 @@
 from Trainer import Trainer
 from Alimon import Alimon
 from AliBall import AliBall
+import keyboard
+import os
 import time
 import random
 ################################################################################################################################
@@ -23,7 +25,7 @@ import random
 #
 #version 0.07
 #CHANGE LGG 10/18/2022
-#   Added Load functions and 3 text files containing meta data and trainer profile
+#   Added Save and Load functions and 3 text files containing meta data and trainer profile
 #   Added 3 more Balls that will be usable in the future.
 #   Implmented logic on reading saves and having a universal alidex and item list
 #   Fixed all other functions to work correctly with newly added loading function
@@ -82,7 +84,7 @@ import random
 # ---------------------------------------------------------------------------------------------------------------
 class Game:
     ali_list = {}
-    menu_choices = ["Create Alimon" ,"Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag" ,"Exit"]
+    menu_choices = ["Create Alimon" ,"Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag","Save","Exit"]
     item_list = {}
     main_trainer = None
 
@@ -94,71 +96,12 @@ class Game:
         if(alimonDex == None):
             print("Please Load an AliDex file")
             return
-        # Call load Alidex Function
+        # Call load Alidex, load item list, load_trainer to initialize all 3 with a given save
         self.load_alidex(alimonDex)
-        #Call load item list Function
         self.load_item_list(itemDex)
+        self.load_trainer(trainerProfile)
         #If no trainer profile is provided, this means its a new game so lets create a new Trainer!
-        if(trainerProfile == None):
-            print("Welcome to the world of Pokemon! Are You A Boy or a Girl?")
-            correct_choice = 0
-            while (correct_choice == 0):
-                try:
-                    gender = input().upper()
-                except:
-                    print("Please choose boy or girl")
-                if (gender == "BOY" or gender == "GIRL"):
-                    correct_choice = 1
-                else:
-                    print("Please choose boy or girl")
-            print("Well that's wonderful, what is your name?")
-            name = input().upper()
-            self.main_trainer = Trainer(name, gender)
-            print("It is very nice to meet you {name}, I am Prof. Broke. I am a researcher here in the Pokemon world. I'm sure you know how to be a trainer so here are some pokeballs.".format(name=self.main_trainer.name))
-            self.main_trainer.add_to_bag(AliBall(), 1)
 
-        #If Trainer Profile is given, iterate through and set Trainer parameters
-        else:
-            trainer_info = []
-            trainer_bag = {}
-            trainer_bag_count = []
-            trainer_team = []
-            trainer_pc = []
-            with open("trainerProfile.txt", 'r') as reader:
-                for line in reader:
-                    trainer_info.append(line.strip("\n"))
-
-            #Make two new bag objects and occupy them with the contents of the 3rd and 4th line of the file
-            for item in trainer_info[2].split("+"):
-                if(item not in self.item_list):
-                    print("You have an invalid Item")
-                    return
-                else:
-                    trainer_bag[item] = self.item_list[item]
-            for count in trainer_info[3].split("+"):
-                trainer_bag_count.append(int(count))
-
-            #Iterate through each Alimon and fill Trainer team and pc
-            for alimon in trainer_info[4].split("+"):
-                ali_info = alimon.strip("[]").split(",")
-                name = ali_info[0]
-                lvl = ali_info[1]
-                exp = ali_info[2]
-                is_shiny = ali_info[3]
-                new_alimon = Alimon(name, self.ali_list[name].capture_rate,self.ali_list[name].encounter_rate,lvl,exp,is_shiny)
-                trainer_team.append(new_alimon)
-
-            for alimon in trainer_info[4].split("+"):
-                ali_info = alimon.strip("[]").split(",")
-                name = ali_info[0]
-                lvl = ali_info[1]
-                exp = ali_info[2]
-                is_shiny = ali_info[3]
-                new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
-                                    exp, is_shiny)
-                trainer_pc.append(new_alimon)
-
-            self.main_trainer = Trainer(trainer_info[0],trainer_info[1],trainer_bag, trainer_bag_count,trainer_team,trainer_pc)
 
         num_of_menu_choices = len(self.menu_choices)
         choice_num = 1
@@ -180,19 +123,27 @@ class Game:
             try:
                 answer=input().upper().strip()
             except:
+                os.system('cls')
                 print("That is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
             if (answer == "DOWN"):
                 if (select_num == num_of_menu_choices):
                     select_num = 1
+                    os.system('cls')
                 else:
                     select_num += 1
+                    os.system('cls')
             elif (answer == "UP"):
                 if (select_num == 1):
                     select_num = num_of_menu_choices
+                    os.system('cls')
                 else:
                     select_num -= 1
+                    os.system('cls')
             elif (answer == "ENTER"):
-                print(current_choice)
+                #print(current_choice)
+                os.system('cls')
                 if current_choice == "Create Alimon":
                     self.alimon_creation()
                 # IF answer is ENCOUNTER call encounter function
@@ -201,28 +152,40 @@ class Game:
                 # IF answer is PRINT ALIDEX call print_alidex function
                 elif (current_choice == "Print Alidex"):
                     self.print_alidex()
+                    time.sleep(5)
                 # IF answer is PRINT TRAINER INFO call print_trainer_info function
                 elif (current_choice == "Print Trainer Info"):
                     self.print_trainer_info()
-                #IF answer is PRINT <Alimon> INFO separate the alimon name and then call print_alimon_info on it
-                #TODO: Add AliDex viewer to eliminate this choice
+                    time.sleep(5)
+                # IF answer is PRINT <Alimon> INFO separate the alimon name and then call print_alimon_info on it
+                # TODO: Add AliDex viewer to eliminate this choice
                 elif (current_choice == "Print <Alimon> Info"):
-                     print("What Alimon Would You Like To See?")
-                     alimon_name = input().upper().strip()
-                     self.print_alimon_info(alimon_name)
+                    print("What Alimon Would You Like To See?")
+                    alimon_name = input().upper().strip()
+                    self.print_alimon_info(alimon_name)
                 # IF answer is BAG call create BAG function which will turn on the BAG menu
                 elif (current_choice == "Bag"):
                     self.view_bag_out_battle(self.main_trainer)
+                elif (current_choice == "Save"):
+                    self.save_game(trainerProfile)
                 # IF answer is EXIT set end_game to 1 and end the game loop
                 elif (current_choice == "Exit"):
                     end_game = True
                 else:
+                    os.system('cls')
                     print("Sorry that is not a valid choice.")
-            elif(answer == "EXIT"):
+                    time.sleep(2)
+
+                os.system('cls')
+            elif (answer == "EXIT"):
                 end_game = True
-            #IF answer is invalid, print a message and have them choose again
+                # IF answer is invalid, print a message and have them choose again
             else:
+                os.system('cls')
                 print("Sorry that is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
+
 
 
 
@@ -237,6 +200,84 @@ class Game:
     def alimon_creation(self, name, capture_rate, encounter_rate, level):
 
         self.ali_list[name] = Alimon(name, capture_rate, level)
+
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          LOAD TRAINER FUNCTION
+    #   @param Self, trainer profile containing trainer info with data separated by \n
+    #   @return nothing runs until it ends
+    #   -Read through the file and parces the data appropriately
+    #   -Creates new trainer object and points main trainer at it
+    #   or
+    #   -Creates new trainer from user input data
+    #   -Makes main trainer point at new trainer object created from data
+    # ---------------------------------------------------------------------------------------------------------------
+    def load_trainer(self, trainerProfile):
+        #If None gets sent, that means we started a new game!
+        if (trainerProfile == None):
+            print("Welcome to the world of Alimon! Are You A Boy or a Girl?")
+            correct_choice = 0
+            while (correct_choice == 0):
+                try:
+                    gender = input().upper()
+                except:
+                    print("Please choose boy or girl")
+                if (gender == "BOY" or gender == "GIRL"):
+                    correct_choice = 1
+                else:
+                    print("Please choose boy or girl")
+            print("Well that's wonderful, what is your name?")
+            name = input().upper()
+            self.main_trainer = Trainer(name, gender)
+            print(
+                "It is very nice to meet you {name}, I am Prof. Broke. I am a researcher here in the Pokemon world. I'm sure you know how to be a trainer so here are some pokeballs and money.".format(
+                    name=self.main_trainer.name))
+            self.main_trainer.add_to_bag(AliBall(), 1)
+
+            # If Trainer Profile is given, iterate through and set Trainer parameters
+        else:
+            trainer_info = []
+            trainer_bag = {}
+            trainer_bag_count = []
+            trainer_team = []
+            trainer_pc = []
+            money = 0
+            with open("trainerProfile.txt", 'r') as reader:
+                for line in reader:
+                    trainer_info.append(line.strip("\n"))
+
+            # Make two new bag objects and occupy them with the contents of the 3rd and 4th line of the file
+            for item in trainer_info[2].split("+"):
+                if (item not in self.item_list):
+                    print("You have an invalid Item")
+                    return
+                else:
+                    trainer_bag[item] = self.item_list[item]
+            for count in trainer_info[3].split("+"):
+                trainer_bag_count.append(int(count))
+
+            # Iterate through each Alimon and fill Trainer team and pc
+            for alimon in trainer_info[4].split("+"):
+                ali_info = alimon.strip("[]").split(",")
+                name = ali_info[0]
+                lvl = ali_info[1]
+                exp = ali_info[2]
+                is_shiny = ali_info[3]
+                new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
+                                    exp, is_shiny)
+                trainer_team.append(new_alimon)
+
+            for alimon in trainer_info[5].split("+"):
+                ali_info = alimon.strip("[]").split(",")
+                name = ali_info[0]
+                lvl = ali_info[1]
+                exp = ali_info[2]
+                is_shiny = ali_info[3]
+                new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
+                                    exp, is_shiny)
+                trainer_pc.append(new_alimon)
+            money = int(trainer_info[6])
+            self.main_trainer = Trainer(trainer_info[0], trainer_info[1], trainer_bag, trainer_bag_count, trainer_team,
+                                        trainer_pc)
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          LOAD ALIDEX FUNCTION
@@ -254,6 +295,56 @@ class Game:
                 enc_rate = float(alimon[2])
                 new_alimon = Alimon(name, cap_rate, enc_rate)
                 self.ali_list[name] = new_alimon
+
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          SAVE GAME FUNCTION
+    #   @param Self, name of file to save to
+    #   @return nothing runs until it ends
+    #   -Check if fileToSaveTo is empty
+    #       -If yes, sets it to the default "trainerProfile.txt"
+    #   -Prompts user if they want to save over the file
+    #       -If yes, writes all info of current main trainer into specified file in correct format
+    #       -If no, returns to main menu
+    #       -Repeat prompt for every other answer
+    # ---------------------------------------------------------------------------------------------------------------
+    def save_game(self, fileToSaveTo):
+        exit = 0
+        while(exit == 0):
+            if(fileToSaveTo== None):
+                fileToSaveTo = "trainerProfile.txt"
+            print("Are You Sure You Wnat to Save To: " + fileToSaveTo + "?(yes/no)")
+            try:
+                answer = input().upper().strip()
+            except:
+                print("That is not a valid choice")
+            if(answer == "YES"):
+                with open(fileToSaveTo, 'w') as filetowrite:
+                    print(self.main_trainer.trainer_info)
+                    for each in self.main_trainer.trainer_info:
+
+                        if(type(each) ==type([])):
+                            newStr = ""
+                            for item in each:
+                                if(isinstance(item, Alimon)):
+                                    newStr += "[{name},{lvl},{exp},{isShiny}]".format(name=item.name,lvl=item.level,exp=item.exp,isShiny=item.is_shiny) + "+"
+                                else:
+                                    newStr += str(item) + "+"
+                            newStr = newStr.rstrip("+")
+                            filetowrite.write(newStr + "\n")
+                        elif(type(each) == type({})):
+                            newStr = ""
+                            for item in each.keys():
+                                newStr += str(item) + "+"
+                            newStr = newStr.rstrip("+")
+                            filetowrite.write(newStr + "\n")
+                        else:
+                            filetowrite.write(str(each) + "\n")
+                print("Save Successful! ")
+                exit = 1
+            elif(answer == "NO"):
+                exit = 1
+            else:
+                print("Sorry that is not a valid choice.")
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          LOAD ITEM LIST FUNCTION
@@ -292,7 +383,7 @@ class Game:
             print("Oh no! Your Alidex is Empty, Go Create Some!")
         else:
             for key, value in self.ali_list.items():
-                print(key)
+                print(key + " Capture Rate" + str(self.ali_list[key].capture_rate))
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          PRINT TRAINER INFO FUNCTION
@@ -355,17 +446,27 @@ class Game:
             try:
                 answer = input().upper().strip()
             except:
+                os.system('cls')
                 print("That is not a valid option try again")
+                time.sleep(2)
+                os.system('cls')
             if (answer == "BATTLE"):
+                os.system('cls')
                 print("Sorry this has not been implemented yet, please RUN or BAG")
+                time.sleep(2)
+                os.system('cls')
             elif (answer == "BAG"):
+                os.system('cls')
                 end_battle = self.view_bag_in_battle(trainer, None, new_alimon)
                 if(end_battle):
                     correct_choice=1
             elif (answer == "RUN"):
                 correct_choice = 1
             else:
+                os.system('cls')
                 print("Sorry that is not a valid option, please choose something else")
+                time.sleep(2)
+                os.system('cls')
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          VIEW BAG OUT OF BATTLE FUNCTION
@@ -380,7 +481,10 @@ class Game:
     def view_bag_out_battle(self, trainer):
         #Empty bag Check
         if (len(trainer.bag) == 0):
+            os.system('cls')
             print("Oh no! Your Bag is Empty, Go Create Some!")
+            time.sleep(2)
+            os.system('cls')
         else:
             #Bag contents printing logic
             num_of_items_in_bag = len(trainer.bag)
@@ -399,12 +503,12 @@ class Game:
                         current_item_count = trainer.get_item_count(value)
                     else:
                         print("{choice_num}.".format(choice_num=choice_num) + key + "            x" + str(
-                            trainer.get_item_count(key)))
+                            trainer.get_item_count(value)))
                         choice_num += 1
                 choice_num = 0
                 print("Back\n")
                 print("---------------------------------------------------------------------------------------")
-                print(current_item.desc + "\n")
+                print(current_item.desc)
                 print("---------------------------------------------------------------------------------------")
                 print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
 
@@ -412,17 +516,24 @@ class Game:
                 try:
                     answer = input().strip().upper()
                 except:
+                    os.system('cls')
                     print("That is not a valid choice.")
+                    time.sleep(2)
+                    os.system('cls')
                 if (answer == "DOWN"):
                     if (select_num == num_of_items_in_bag - 1):
                         select_num = 0
+                        os.system('cls')
                     else:
                         select_num += 1
+                        os.system('cls')
                 elif (answer == "UP"):
                     if (select_num == 0):
                         select_num = num_of_items_in_bag - 1
+                        os.system('cls')
                     else:
                         select_num -= 1
+                        os.system('cls')
                 elif (answer == "USE"):
                     print(current_item.name)
                     #Calls the use item function on the current item selected
@@ -430,8 +541,10 @@ class Game:
                 elif (answer == "BACK"):
                     return False
                 else:
+                    os.system('cls')
                     print("Sorry that is not a valid choice.")
-
+                    time.sleep(2)
+                    os.system('cls')
 
 
     # -----------------------------------------------------------------------------------------------------------------------------
@@ -472,7 +585,7 @@ class Game:
                 choice_num = 0
                 print("Back\n")
                 print("---------------------------------------------------------------------------------------")
-                print(current_item.desc + "\n")
+                print(current_item.desc)
                 print("---------------------------------------------------------------------------------------")
                 print("What would you like to do? \nDOWN \nUP \nUSE \nBACK")
 
@@ -480,17 +593,24 @@ class Game:
                 try:
                     answer = input().strip().upper()
                 except:
+                    os.system('cls')
                     print("That is not a valid choice.")
+                    time.sleep(2)
+                    os.system('cls')
                 if (answer == "DOWN"):
                     if (select_num == num_of_items_in_bag - 1):
                         select_num = 0
+                        os.system('cls')
                     else:
                         select_num += 1
+                        os.system('cls')
                 elif (answer == "UP"):
                     if (select_num == 0):
                         select_num = num_of_items_in_bag - 1
+                        os.system('cls')
                     else:
                         select_num -= 1
+                        os.system('cls')
                 elif (answer == "USE"):
                     print(current_item.name)
                     #catch_bool is used to check if trainer is attempting to catch an Alimon
@@ -507,7 +627,10 @@ class Game:
                 elif (answer == "BACK"):
                     return False
                 else:
+                    os.system('cls')
                     print("Sorry that is not a valid choice.")
+                    time.sleep(2)
+                    os.system('cls')
 
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -522,7 +645,10 @@ class Game:
     def use_item(self, item, in_encounter):
         if(item.type == "BALL"):
             if(in_encounter == False):
+                os.system('cls')
                 print("Sorry You Cannot Use That Item Right Now.")
+                time.sleep(2)
+                os.system('cls')
                 return False
             else:
                 self.main_trainer.remove_item(item, 1)
@@ -543,7 +669,9 @@ class Game:
 
         #Decide wether or not the Alimon is caught using it's capture rate multiplied by Ball multiplier
         caught_bool = self.random_choice([True, False], [alimon.capture_rate * item.capture_rate_multiplier, 1 - (alimon.capture_rate * item.capture_rate_multiplier)],1)[0]
+        os.system('cls')
         print("{name} used {item}!".format(name = trainer.name, item = item.name))
+        time.sleep(1)
         #Instantiate a message list
         catch_message = ["Not Even Close Bro", "Oops Try Again", "Close But No Sauce", "Lmao You Thought", "WE CAUGHT {alimon_name}!".format(alimon_name= alimon.name)]
 
@@ -558,6 +686,7 @@ class Game:
             time.sleep(2)
             print(catch_message[num_shakes])
             time.sleep(2)
+            os.system('cls')
             return False
 
         #If caught_bool ends up True, shake 3 times and click to simulate capture, then append new Alimon object to Trainers team or PC
@@ -579,7 +708,8 @@ class Game:
                 print("You Dont Have Enough Space On Your Team, {alimon} has been sent to your PC".format(alimon = alimon.name))
                 trainer.pc.append(alimon)
 
-            time.sleep(2)
+            time.sleep(4)
+            os.system('cls')
             return True
 
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -591,8 +721,14 @@ class Game:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------
     def random_choice(self, target_list, weighted_list, num_of_choices):
         if(len(target_list) == 0):
+            os.system('cls')
             print("Your list is empty")
+            time.sleep(2)
+            os.system('cls')
         elif(num_of_choices == 0):
+            os.system('cls')
             print("Please specify how many choices you want")
+            time.sleep(2)
+            os.system('cls')
         else:
             return random.choices(list(target_list), weights=weighted_list, k=num_of_choices)

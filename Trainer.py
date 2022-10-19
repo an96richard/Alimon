@@ -2,14 +2,16 @@ from Item import Item
 from AliBall import AliBall
 class Trainer:
     # Trainer Contructor
-    #TODO: change poke team to aliTeam
-    def __init__(self, name, gender, bag = {}, bag_count = [], ali_team = [], pc = []):
+    trainer_info = []
+    def __init__(self, name, gender, bag = {}, bag_count = [], ali_team = [], pc = [], money = 1000):
         self.name = name
         self.gender = gender
         self.bag = bag
         self.bag_count = bag_count
         self.ali_team = ali_team
         self.pc = pc
+        self.money = money
+        self.trainer_info = [self.name, self.gender, self.bag, self.bag_count, self.ali_team, self.pc, self.money]
 
     # Description of Trainer
     def __repr__(self):
