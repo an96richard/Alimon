@@ -63,3 +63,4 @@ class Trainer:
                 self.bag_count.pop(index)
         else:
             return "Sorry You Do Not Have That Item"
+

@@ -23,15 +23,23 @@ import random
 #                              Welcome To Alimon, a new adventure created by Richie An                                         #
 ################################################################################################################################
 #
+#version 0.08
+#CHANGE LOG 10/25/2022
+#   Added a view party function to allow users to look at all Alimon in currently in their "party"
+#   Function works to display and allow users to select a specific Alimon and inspect it
+#   Needs supporting functions to be implemented to switch order of Alimon, use items on them, and display important information (stats, desc, traits etc)
+#
+#
 #version 0.07
-#CHANGE LGG 10/18/2022
+#CHANGE LOG 10/18/2022
 #   Added Save and Load functions and 3 text files containing meta data and trainer profile
 #   Added 3 more Balls that will be usable in the future.
 #   Implmented logic on reading saves and having a universal alidex and item list
 #   Fixed all other functions to work correctly with newly added loading function
+#   Cleaned up printing logic to make it look like an actual text game.
 #
 #version 0.05
-#CHANGE LGG 10/17/2022
+#CHANGE LOG 10/17/2022
 #   Added new View Bag Functions and logic
 #   Implmented Use AliBall Function to properly catch Alimons and store them in trainer team and PC
 #   Fixed Encounter to generate new Alimon object on each encounter, and logic for view bag and use items
@@ -47,12 +55,27 @@ import random
 #   Added Beggining stages code for Alidex, Encounters, Trainer info, and Alimon info.
 #   Added functions for encounters, creating and storing alimons, and printing necessary information
 #------------------------------------------------------
-#TODO:  IMPLEMENT SAVE, FULL ALIDEX, BATTLE SYSTEM, OTHER ITEMS, EXP SYSTEM
+#TODO: PARTY MECHANIC, FULL ALIDEX, BATTLE SYSTEM, OTHER ITEMS, EXP SYSTEM
+#
+#
+#CURRENTLY IN PROGRESS: PARTY MECHANIC
+#
 #1.Create Encounter Logic
+#   -Party Mechanic
+#       -Pretty now? Pretty Later?? IDK MAN
+#       -View Party
+#           -In Battle
+#           -Out Of Battle
+#       -Alimon Options
+#           -Switch
+#           -View Info
+#           -Release
+#
 #   -Battling
 #       -Attacks
 #       -HP
 #       -EXP Gain
+#
 #2.Items
 #   -Use Items
 #   -Balls
@@ -61,8 +84,7 @@ import random
 #   -Misc
 #   -Key Items
 #
-#3.Save and Load
-#4.Other
+#3.Other
 #   -NPC
 #   -Maps
 #   -Alidex viewing
@@ -84,7 +106,7 @@ import random
 # ---------------------------------------------------------------------------------------------------------------
 class Game:
     ali_list = {}
-    menu_choices = ["Create Alimon" ,"Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag","Save","Exit"]
+    menu_choices = ["Party","Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag","Save","Exit"]
     item_list = {}
     main_trainer = None
 
@@ -144,8 +166,8 @@ class Game:
             elif (answer == "ENTER"):
                 #print(current_choice)
                 os.system('cls')
-                if current_choice == "Create Alimon":
-                    self.alimon_creation()
+                if current_choice == "Party":
+                    self.view_party(False)
                 # IF answer is ENCOUNTER call encounter function
                 elif current_choice == "Encounter":
                     self.encounter(self.main_trainer)
@@ -261,7 +283,7 @@ class Game:
                 name = ali_info[0]
                 lvl = ali_info[1]
                 exp = ali_info[2]
-                is_shiny = ali_info[3]
+                is_shiny = bool(ali_info[3])
                 new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
                                     exp, is_shiny)
                 trainer_team.append(new_alimon)
@@ -370,6 +392,163 @@ class Game:
                     new_item = Item(name,type,desc,cost)
 
                 self.item_list[name] = new_item
+
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          VIEW PARTY FUNCTION
+    #   @param Self, in_encounter bool
+    #   @return nothing runs until it ends or party is empty
+    #   -Print out main trainer's Ali team with name and level
+    #   -If user selects an Alimon options will appear allowing user to manipulate selected Alimon
+    #   -If in-encounter is TRUE different options will be available for each Alimon
+    # ---------------------------------------------------------------------------------------------------------------
+    def view_party(self, in_encounter):
+        os.system('cls')
+        num_of_alimon = len(self.main_trainer.ali_team)
+        if(num_of_alimon == 0):
+            print("Sorry You Do Not Have Any Alimons! Go Encounter Alimons in the Wild!")
+            time.sleep(2)
+            os.system('cls')
+            return
+
+
+        #This portion of the code is used to print out the current Alimon in the party and let user choose which Alimon they want to navigate and manipulate. INFO/SUMMARY/SWITCH
+        #=============================================================================================================================================================================================
+        choice_num = 1
+        select_num = 1
+        end_party_view = False
+        while (not end_party_view):
+            # PARTY PRINTING LOGIC
+            for box in range(0,6):
+                if(box < num_of_alimon):
+                    if (select_num == choice_num):
+                        print(">{choice_num}. {alimon}    lvl{lvl}".format(choice_num=choice_num, alimon = self.main_trainer.ali_team[box].name, lvl = self.main_trainer.ali_team[box].level))
+                        choice_num += 1
+                        current_alimon = self.main_trainer.ali_team[box]
+                    else:
+                        print("{choice_num}. {alimon}    lvl{lvl}".format(choice_num=choice_num, alimon = self.main_trainer.ali_team[box].name, lvl = self.main_trainer.ali_team[box].level))
+                        choice_num += 1
+                else:
+                    print(str(choice_num) + ".")
+                    choice_num+=1
+            choice_num = 1
+            print("What will you do now? (DOWN, UP, ENTER, BACK)")
+            # Try to turn input uppercase
+            try:
+                answer = input().upper().strip()
+            except:
+                os.system('cls')
+                print("That is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
+            if (answer == "DOWN"):
+                if (select_num == num_of_alimon):
+                    select_num = 1
+                    os.system('cls')
+                else:
+                    select_num += 1
+                    os.system('cls')
+            elif (answer == "UP"):
+                if (select_num == 1):
+                    select_num = num_of_alimon
+                    os.system('cls')
+                else:
+                    select_num -= 1
+                    os.system('cls')
+            elif (answer == "ENTER"):
+                os.system('cls')
+                menu_choices = []
+                if(in_encounter):
+                    if(select_num == 1):
+                        menu_choices = ["Item", "Summary", "Back"]
+                    else:
+                        menu_choices = ["Item", "Summary", "Switch", "Back"]
+                else:
+                    menu_choices = ["Item", "Summary", "Move", "Back"]
+
+                #This inner portion is withing the elif where ANSWER is equal to "ENTER". It prints out the options that the user can choose for the currently selected Alimon
+                #--------------------------------------------------------------------------------------------------------------------------------------------------------------
+                num_of_menu_choices = len(menu_choices)
+                choice = 1
+                select = 1
+                end_alimon_party_view = False
+                while (not end_alimon_party_view):
+                    # VIEWING OPTIONS FOR ALIMON DURING PARTY VIEW PRINTING LOGIC
+                    print(current_alimon.is_shiny)
+                    if (current_alimon.is_shiny == True):
+                        print("===========================================")
+                        print("|       *{choice}          lvl {lvl}      |".format(choice=current_alimon.name,lvl=current_alimon.level))
+                        print("===========================================")
+                    else:
+                        print("===========================================")
+                        print("|       {choice}          lvl {lvl}       |".format(choice=current_alimon.name,lvl=current_alimon.level))
+                        print("===========================================")
+                    for option in menu_choices:
+                        if (select == choice):
+                            print(">".format(choice_num=choice) + option)
+                            choice += 1
+                            curr_choice = option
+                        else:
+                            print(option)
+                            choice += 1
+                    choice = 1
+                    print("What will you do now? (DOWN, UP, ENTER, BACK)")
+                    # Try to turn input uppercase
+                    try:
+                        answer = input().upper().strip()
+                    except:
+                        os.system('cls')
+                        print("That is not a valid choice")
+                        time.sleep(2)
+                        os.system('cls')
+                    if (answer == "DOWN"):
+                        if (select == num_of_menu_choices):
+                            select = 1
+                            os.system('cls')
+                        else:
+                            select += 1
+                            os.system('cls')
+                    elif (answer == "UP"):
+                        if (select == 1):
+                            select = num_of_menu_choices
+                            os.system('cls')
+                        else:
+                            select -= 1
+                            os.system('cls')
+                    #TODO: Make  view_bag_with_alimon/switch_alimon method. Redo print Alimon info to print more things.
+                    elif (answer == "ENTER"):
+                        os.system('cls')
+                        if(curr_choice == "Item"):
+                            self.view_bag_with_alimon(current_alimon)
+                        elif(curr_choice == "Summary"):
+                            self.print_alimon_info(current_alimon)
+                        elif(curr_choice == "Switch"):
+                            self.switch_alimon()
+                        elif(curr_choice == "Move"):
+                            pass
+                        elif(curr_choice == "Back"):
+                            end_alimon_party_view = True
+                    elif (answer == "BACK"):
+                        end_alimon_party_view = True
+                        os.system('cls')
+                    else:
+                        os.system('cls')
+                        print("Sorry that is not a valid choice")
+                        time.sleep(2)
+                        os.system('cls')
+                    #-------------------------------------------------------------------------------------------------------------------------
+            elif (answer == "BACK"):
+                end_party_view = True
+                os.system('cls')
+            # IF answer is invalid, print a message and have them choose again
+            else:
+                os.system('cls')
+                print("Sorry that is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
+            #==================================================================================================================================================
+
+
+
     # ---------------------------------------------------------------------------------------------------------------
     #                                          PRINT ALIDEX FUNCTION
     #   @param Self
@@ -625,6 +804,7 @@ class Game:
 
                     return caught
                 elif (answer == "BACK"):
+                    os.system('cls')
                     return False
                 else:
                     os.system('cls')
