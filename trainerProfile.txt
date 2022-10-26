@@ -2,6 +2,6 @@ Rich
 BOY
 AliBall+Great AliBall
 5+7
-[Mew, 54, 200, False]+[Bidoof, 12, 40, True]
-[Bidoof,40,200,False]
+[Bidoof,12,40,True]+[Mew,54,200,False]
+[Bidoof,40,200,True]
 1000

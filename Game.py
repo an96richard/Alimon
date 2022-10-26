@@ -23,6 +23,12 @@ import random
 #                              Welcome To Alimon, a new adventure created by Richie An                                         #
 ################################################################################################################################
 #
+#
+#version 0.085
+#CHANGE LOG 10/26/2022
+#   Further developed view party with some changes and bug fixes
+#   Added switch Alimon function in both Encounter and View Party functions to allow user to switch order of their Ali-Team
+#
 #version 0.08
 #CHANGE LOG 10/25/2022
 #   Added a view party function to allow users to look at all Alimon in currently in their "party"
@@ -109,7 +115,7 @@ class Game:
     menu_choices = ["Party","Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag","Save","Exit"]
     item_list = {}
     main_trainer = None
-
+    in_encounter = False
     def __init__(self, trainerProfile, itemDex, alimonDex):
         #Empty File Check
         if(itemDex == None):
@@ -167,7 +173,7 @@ class Game:
                 #print(current_choice)
                 os.system('cls')
                 if current_choice == "Party":
-                    self.view_party(False)
+                    self.view_party()
                 # IF answer is ENCOUNTER call encounter function
                 elif current_choice == "Encounter":
                     self.encounter(self.main_trainer)
@@ -283,9 +289,9 @@ class Game:
                 name = ali_info[0]
                 lvl = ali_info[1]
                 exp = ali_info[2]
-                is_shiny = bool(ali_info[3])
-                new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
-                                    exp, is_shiny)
+                is_shiny = (ali_info[3] == "True")
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), int(lvl),
+                                    int(exp), is_shiny)
                 trainer_team.append(new_alimon)
 
             for alimon in trainer_info[5].split("+"):
@@ -293,9 +299,9 @@ class Game:
                 name = ali_info[0]
                 lvl = ali_info[1]
                 exp = ali_info[2]
-                is_shiny = ali_info[3]
-                new_alimon = Alimon(name, self.ali_list[name].capture_rate, self.ali_list[name].encounter_rate, lvl,
-                                    exp, is_shiny)
+                is_shiny = bool(ali_info[3])
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), int(lvl),
+                                    int(exp), is_shiny)
                 trainer_pc.append(new_alimon)
             money = int(trainer_info[6])
             self.main_trainer = Trainer(trainer_info[0], trainer_info[1], trainer_bag, trainer_bag_count, trainer_team,
@@ -361,7 +367,7 @@ class Game:
                             filetowrite.write(newStr + "\n")
                         else:
                             filetowrite.write(str(each) + "\n")
-                print("Save Successful! ")
+                print("Save Successful!")
                 exit = 1
             elif(answer == "NO"):
                 exit = 1
@@ -395,13 +401,13 @@ class Game:
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          VIEW PARTY FUNCTION
-    #   @param Self, in_encounter bool
+    #   @param Self and optional swap position if user wants to swap alimon
     #   @return nothing runs until it ends or party is empty
     #   -Print out main trainer's Ali team with name and level
     #   -If user selects an Alimon options will appear allowing user to manipulate selected Alimon
     #   -If in-encounter is TRUE different options will be available for each Alimon
     # ---------------------------------------------------------------------------------------------------------------
-    def view_party(self, in_encounter):
+    def view_party(self, swap_position=None):
         os.system('cls')
         num_of_alimon = len(self.main_trainer.ali_team)
         if(num_of_alimon == 0):
@@ -431,7 +437,10 @@ class Game:
                     print(str(choice_num) + ".")
                     choice_num+=1
             choice_num = 1
-            print("What will you do now? (DOWN, UP, ENTER, BACK)")
+            if(swap_position == None):
+                print("What will you do now? (DOWN, UP, ENTER, BACK)")
+            else:
+                print("Which Alimon Do You Want TO Swap With?")
             # Try to turn input uppercase
             try:
                 answer = input().upper().strip()
@@ -457,13 +466,41 @@ class Game:
             elif (answer == "ENTER"):
                 os.system('cls')
                 menu_choices = []
-                if(in_encounter):
-                    if(select_num == 1):
+                #If trainer is currently in an encounter
+                if(self.in_encounter):
+                    # If user is selecting the first alimon in the party and is not trying to swap
+                    if(select_num == 1 and swap_position == None):
                         menu_choices = ["Item", "Summary", "Back"]
-                    else:
+                    # If the selected alimon is being swapped with itself
+                    elif(select_num == swap_position):
+                        os.system('cls')
+                        print("You Cannot Swap This Alimon with Itself")
+                        time.sleep(2)
+                        os.system('cls')
+                        continue
+                    # If the selected alimon is not the first alimon in the party
+                    elif(swap_position == None):
                         menu_choices = ["Item", "Summary", "Switch", "Back"]
+                    # If the user is swapping two Alimons
+                    else:
+                        self.swap_alimon_position(select_num-1, swap_position-1)
+                        return
                 else:
-                    menu_choices = ["Item", "Summary", "Move", "Back"]
+                    # If the selected alimon is being swapped with itself
+                    if (select_num == swap_position):
+                        os.system('cls')
+                        print("You Cannot Swap This Alimon with Itself")
+                        time.sleep(2)
+                        os.system('cls')
+                        continue
+                    # If the selected alimon is not the first alimon in the party
+                    elif (swap_position == None):
+                        menu_choices = ["Item", "Summary", "Move", "Back"]
+                    # If the user is swapping two Alimons
+                    else:
+                        self.swap_alimon_position(select_num - 1, swap_position - 1)
+                        return
+
 
                 #This inner portion is withing the elif where ANSWER is equal to "ENTER". It prints out the options that the user can choose for the currently selected Alimon
                 #--------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -521,10 +558,8 @@ class Game:
                             self.view_bag_with_alimon(current_alimon)
                         elif(curr_choice == "Summary"):
                             self.print_alimon_info(current_alimon)
-                        elif(curr_choice == "Switch"):
-                            self.switch_alimon()
-                        elif(curr_choice == "Move"):
-                            pass
+                        elif(curr_choice == "Switch" or curr_choice == "Move"):
+                            self.view_party(select_num)
                         elif(curr_choice == "Back"):
                             end_alimon_party_view = True
                     elif (answer == "BACK"):
@@ -621,7 +656,7 @@ class Game:
             if(is_shiny):
                 shiny_prompt = " AND ITS SHINY!!!"
             print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level= level) + shiny_prompt)
-            print("Battle (not Implemented)\nBag\nRun")
+            print("Battle (not Implemented)\nParty\nBag\nRun")
             try:
                 answer = input().upper().strip()
             except:
@@ -633,6 +668,10 @@ class Game:
                 os.system('cls')
                 print("Sorry this has not been implemented yet, please RUN or BAG")
                 time.sleep(2)
+                os.system('cls')
+            elif (answer == "PARTY"):
+                os.system('cls')
+                self.view_party()
                 os.system('cls')
             elif (answer == "BAG"):
                 os.system('cls')
@@ -793,16 +832,20 @@ class Game:
                 elif (answer == "USE"):
                     print(current_item.name)
                     #catch_bool is used to check if trainer is attempting to catch an Alimon
-                    catch_bool = self.use_item(current_item, True)
+                    if (current_item.type == "BALL"):
+                        if (self.in_encounter == False):
+                            os.system('cls')
+                            print("Sorry You Cannot Use That Item Right Now.")
+                            time.sleep(2)
+                            os.system('cls')
+                        else:
+                            self.main_trainer.remove_item(item, 1)
+                            caught = self.catching_alimon(current_item, current_opp_alimon, trainer)
+                            return caught
+                    elif(current_item.type == "HEAL"):
+                        pass
 
-                    #Caught is here to see if the battle needs to end
-                    caught = False
 
-                    #If Trainer is attempting to catch an Alimon, call the catching function
-                    if (catch_bool):
-                        caught = self.catching_alimon(current_item, current_opp_alimon, trainer)
-
-                    return caught
                 elif (answer == "BACK"):
                     os.system('cls')
                     return False
@@ -812,27 +855,21 @@ class Game:
                     time.sleep(2)
                     os.system('cls')
 
-
-    # ---------------------------------------------------------------------------------------------------------------
-    #                                          USE ITEM FUNCTION
-    #   @param self, item trying to be used, and if we are currently in an encounter
-    #   @return currently returns True if Ball was used, False if not
-    #   TODO: make item logic for other items (healing, key items, etc)
-    #   -Checks what type of item is being used and correctly uses that item
-    #       -If item is a ball and can be used, the function returns true so we can call the catch function
-    #   -After successful use, subtract 1x from item count and return
-    # ---------------------------------------------------------------------------------------------------------------
-    def use_item(self, item, in_encounter):
-        if(item.type == "BALL"):
-            if(in_encounter == False):
-                os.system('cls')
-                print("Sorry You Cannot Use That Item Right Now.")
-                time.sleep(2)
-                os.system('cls')
-                return False
-            else:
-                self.main_trainer.remove_item(item, 1)
-                return True
+    # -----------------------------------------------------------------------------------------------------------------------------
+    #                                          SWITCH ALIMON FUNCTION
+    #   @param Self, position one, position two
+    #   @return nothing, runs until it ends
+    #   -Swaps Alimon at position 1 with alimon at position 2
+    # -----------------------------------------------------------------------------------------------------------------------------
+    def swap_alimon_position(self, position_one, position_two):
+        os.system('cls')
+        temp_var = self.main_trainer.ali_team[position_one]
+        self.main_trainer.ali_team[position_one] = self.main_trainer.ali_team[position_two]
+        self.main_trainer.ali_team[position_two] = temp_var
+        print("Switch Successful")
+        time.sleep(1)
+        os.system('cls')
+        return
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                          CATCH ALIMON FUNCTION
