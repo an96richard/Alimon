@@ -1,0 +1,2 @@
+headbutt+physical+18+0.8+[0,0,0,0,0,0]+Charges head first striking the opponent with immense force
+hate raid+special+0+0.8+[-10,0,0,0,0,0]+Raids Chat with hate to confuse opponents

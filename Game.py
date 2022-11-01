@@ -1,6 +1,7 @@
 from Trainer import Trainer
 from Alimon import Alimon
 from AliBall import AliBall
+from Attack import Attack
 import keyboard
 import os
 import time
@@ -23,6 +24,22 @@ import random
 #                              Welcome To Alimon, a new adventure created by Richie An                                         #
 ################################################################################################################################
 #
+#
+#version 0.09
+#CHANGE LOG 11/1/2022
+#   Added stats to Alimon
+#   Added implmentation for saving and loading stats
+#   Added function to load list of attacks to use as reference for later
+#   Added pseudo code for other functions at the bottom
+#   Added new file named AttackList to be used to store attack data
+#   Add new Attack class to represent attack objects
+
+#   TODO:Add attacks to Alimons and start working on battle logic
+#   Notes:
+#   Unsure if version is stable or not. Due to lack of Sleep I will be testing it tomorrow.
+#
+#BUGFIX:
+#Fixed a bug in view party that listed the wrong options after switching alimons
 #
 #version 0.085
 #CHANGE LOG 10/26/2022
@@ -64,7 +81,7 @@ import random
 #TODO: PARTY MECHANIC, FULL ALIDEX, BATTLE SYSTEM, OTHER ITEMS, EXP SYSTEM
 #
 #
-#CURRENTLY IN PROGRESS: PARTY MECHANIC
+#CURRENTLY IN PROGRESS: BATTLE MECHANIC
 #
 #1.Create Encounter Logic
 #   -Party Mechanic
@@ -73,16 +90,68 @@ import random
 #           -In Battle
 #           -Out Of Battle
 #       -Alimon Options
-#           -Switch
-#           -View Info
+#           -Switch (CHECK)
+#           -Item
+#           -View Info (CHECK)
 #           -Release
 #
 #   -Battling
+#       -Pseudo Code
+#           >Check if front most Alimon is alive
+#               >If yes
+#                   >Enter battle function with front most Alimon and Encountered Alimon
+#               >If No
+#                   >Enter Battle function with next alive alimon
+#
+#           >Battle Loop (Check if Either Alimon is Dead)
+#               >If Yes
+#                   >If Trainer Alimon is dead
+#                       >Check Trainer Has Other Alimons to send out
+#                           >If Yes
+#                               >Print list to choose from, make sure to mark dead Alimons
+#                               >send out new Alimon and continue battle loop
+#                           >If No
+#                               >Print Loss Message and Return Trainer to main menu
+#                   >If Opposing Alimon is dead
+#                       >Proceed to Gain EXP function with current Alimon
+#               >If No
+#                   >Print Menu of Attacks
+#                   >Prompt user to choose from menu
+#                   >Decided what NPC Alimon is attacking with
+#                   >Calculate Speed of both to see who attacks first
+#                   >Print out attacks and calculate damage to reflect it
+#
+#       -Stats
+#           >Alimons stats held in Dict (Atk: Int, Speed: Int)
+#           >Alimon stats in text file should be list that holds values in order (Atk, Def, Sp. Atk, Sp. Def, Speed, Accuracy)
+#           >When Loading Alimon, take value and assign them to proper dict values.
 #       -Attacks
+#           -List of Attacks
+#               -Should we incorporate basic attacks to test? Probably
+#               -Basic Attacks that deal damage
+#               -Attack Object?
+#                   -Name
+#                   -Type
+#                       -Physical
+#                       -Special
+#                   -Damage
+#                   -Accuracy
+#                   -Description
+#               -Loading Attacks from file
+#           -Menu For Attack moves
+#           -Attack logic
+#               -Calculate damage based on Stats
+#               -Turn based combat
+#           -Wild Alimon Attacks
+#
+#
+#
 #       -HP
 #       -EXP Gain
 #
-#2.Items
+#2. Alimon Center
+#       -Heal All Alimon in Party
+#3.Items
 #   -Use Items
 #   -Balls
 #      -Different Balls
@@ -90,7 +159,7 @@ import random
 #   -Misc
 #   -Key Items
 #
-#3.Other
+#4.Other
 #   -NPC
 #   -Maps
 #   -Alidex viewing
@@ -114,9 +183,10 @@ class Game:
     ali_list = {}
     menu_choices = ["Party","Print Alidex" , "Encounter" ,"Print Trainer Info","Print <Alimon> Info" ,"Bag","Save","Exit"]
     item_list = {}
+    attack_list = {}
     main_trainer = None
     in_encounter = False
-    def __init__(self, trainerProfile, itemDex, alimonDex):
+    def __init__(self, trainerProfile, itemDex, alimonDex, attackList):
         #Empty File Check
         if(itemDex == None):
             print("Please Load an ItemDex file")
@@ -128,6 +198,7 @@ class Game:
         self.load_alidex(alimonDex)
         self.load_item_list(itemDex)
         self.load_trainer(trainerProfile)
+        self.load_attack_list(attackList)
         #If no trainer profile is provided, this means its a new game so lets create a new Trainer!
 
 
@@ -177,6 +248,7 @@ class Game:
                 # IF answer is ENCOUNTER call encounter function
                 elif current_choice == "Encounter":
                     self.encounter(self.main_trainer)
+                    self.in_encounter = False
                 # IF answer is PRINT ALIDEX call print_alidex function
                 elif (current_choice == "Print Alidex"):
                     self.print_alidex()
@@ -290,7 +362,15 @@ class Game:
                 lvl = ali_info[1]
                 exp = ali_info[2]
                 is_shiny = (ali_info[3] == "True")
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), int(lvl),
+                stats = ali_info[4].strip("[]").split(",")
+                newStatDict = {}
+                newStatDict["attack"] = int(stats[0])
+                newStatDict["defense"] = int(stats[1])
+                newStatDict["spattack"] = int(stats[2])
+                newStatDict["spdefense"] = int(stats[3])
+                newStatDict["speed"] = int(stats[4])
+                newStatDict["accuracy"] = int(stats[5])
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, (lvl),
                                     int(exp), is_shiny)
                 trainer_team.append(new_alimon)
 
@@ -300,7 +380,15 @@ class Game:
                 lvl = ali_info[1]
                 exp = ali_info[2]
                 is_shiny = bool(ali_info[3])
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), int(lvl),
+                stats = ali_info[4].strip("[]").split(",")
+                newStatDict = {}
+                newStatDict["attack"] = int(stats[0])
+                newStatDict["defense"] = int(stats[1])
+                newStatDict["spattack"] = int(stats[2])
+                newStatDict["spdefense"] = int(stats[3])
+                newStatDict["speed"] = int(stats[4])
+                newStatDict["accuracy"] = int(stats[5])
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, int(lvl),
                                     int(exp), is_shiny)
                 trainer_pc.append(new_alimon)
             money = int(trainer_info[6])
@@ -324,6 +412,24 @@ class Game:
                 new_alimon = Alimon(name, cap_rate, enc_rate)
                 self.ali_list[name] = new_alimon
 
+    # ---------------------------------------------------------------------------------------------------------------
+    #                                          LOAD ATTACK LIST FUNCTION
+    #   @param Self, attackdex file containing info about possible attacks to use
+    #   @return nothing runs until it ends
+    #   -Read through the file and parces the data appropriately
+    #   -Creates new attack object and stores it in attack_list dict to be used later
+    # ---------------------------------------------------------------------------------------------------------------
+    def load_attack_list(self, attackdex_file):
+        with open(attackdex_file, 'r') as reader:
+            for line in reader:
+                attack = line.strip("\n").split("+")
+                name = attack[0]
+                type = attack[1]
+                damage = int(attack[2])
+                accuracy = float(attack[3])
+                stat_change = attack[4]
+                description = attack[5]
+            self.attack_list[name] = Attack(name,type,damage,accuracy,stat_change,description)
     # ---------------------------------------------------------------------------------------------------------------
     #                                          SAVE GAME FUNCTION
     #   @param Self, name of file to save to
@@ -349,12 +455,12 @@ class Game:
                 with open(fileToSaveTo, 'w') as filetowrite:
                     print(self.main_trainer.trainer_info)
                     for each in self.main_trainer.trainer_info:
-
                         if(type(each) ==type([])):
                             newStr = ""
                             for item in each:
                                 if(isinstance(item, Alimon)):
-                                    newStr += "[{name},{lvl},{exp},{isShiny}]".format(name=item.name,lvl=item.level,exp=item.exp,isShiny=item.is_shiny) + "+"
+                                    statStr = "[{stat1},{stat12},{stat3},{stat4},{stat5},{stat6}".format(stat1 = item.stats[0],stat2 = item.stats[1],stat3 = item.stats[2],stat4 = item.stats[3],stat5 = item.stats[4],stat6 = item.stats[5])
+                                    newStr += "[{name},{lvl},{exp},{isShiny}.{stats}]".format(name=item.name,lvl=item.level,exp=item.exp,isShiny=item.is_shiny,stats = statStr) + "+"
                                 else:
                                     newStr += str(item) + "+"
                             newStr = newStr.rstrip("+")
@@ -502,7 +608,7 @@ class Game:
                         return
 
 
-                #This inner portion is withing the elif where ANSWER is equal to "ENTER". It prints out the options that the user can choose for the currently selected Alimon
+                #This inner portion is within the elif where ANSWER is equal to "ENTER". It prints out the options that the user can choose for the currently selected Alimon
                 #--------------------------------------------------------------------------------------------------------------------------------------------------------------
                 num_of_menu_choices = len(menu_choices)
                 choice = 1
@@ -510,7 +616,6 @@ class Game:
                 end_alimon_party_view = False
                 while (not end_alimon_party_view):
                     # VIEWING OPTIONS FOR ALIMON DURING PARTY VIEW PRINTING LOGIC
-                    print(current_alimon.is_shiny)
                     if (current_alimon.is_shiny == True):
                         print("===========================================")
                         print("|       *{choice}          lvl {lvl}      |".format(choice=current_alimon.name,lvl=current_alimon.level))
@@ -557,9 +662,17 @@ class Game:
                         if(curr_choice == "Item"):
                             self.view_bag_with_alimon(current_alimon)
                         elif(curr_choice == "Summary"):
-                            self.print_alimon_info(current_alimon)
-                        elif(curr_choice == "Switch" or curr_choice == "Move"):
+                            self.print_alimon_info(current_alimon, select_num-1, self.main_trainer)
+                        elif(curr_choice == "Switch"):
                             self.view_party(select_num)
+                            os.system('cls')
+                            print("You sent out {alimon}!".format(alimon = current_alimon.name))
+                            time.sleep(2)
+                            os.system('cls')
+                            return
+                        elif(curr_choice == "Move"):
+                            self.view_party(select_num)
+                            return
                         elif(curr_choice == "Back"):
                             end_alimon_party_view = True
                     elif (answer == "BACK"):
@@ -616,9 +729,18 @@ class Game:
     #       -If Yes, Prints __repr__ function of the Alimon
     #       -If No, Prints error message and sends them back to the last menu
     # ---------------------------------------------------------------------------------------------------------------
-    def print_alimon_info(self, alimon):
-        if (self.ali_list.get(alimon) != None):
-            print(self.ali_list[alimon])
+    def print_alimon_info(self, alimon, ali_postion=0, trainer=None):
+        if (self.ali_list.get(alimon.name) != None):
+            print("================================")
+            print("|          {alimon}            |".format(alimon =alimon.name))
+            print("================================")
+            print("--------------------------------------------------------------------------------------------")
+            if(trainer == None):
+                print(self.ali_list[alimon.name])
+            else:
+                print(ali_postion)
+                print(trainer.ali_team[ali_postion])
+            print("--------------------------------------------------------------------------------------------")
         else:
             print("Sorry that Alimon does not exist")
 
@@ -639,6 +761,7 @@ class Game:
     def encounter(self, trainer):
 
         #Create new Alimon For Trainer to battle or catch
+        self.in_encounter = True
         weighted_list = []
         for alimon in self.ali_list:
             weighted_list.append(self.ali_list[alimon].encounter_rate)
@@ -929,6 +1052,35 @@ class Game:
             os.system('cls')
             return True
 
+    #   -Battling
+    #       -Pseudo Code
+    #           (Pre Encounter Logic)
+    #           >Check if front most Alimon is alive
+    #               >If yes
+    #                   >Enter battle function with front most Alimon and Encountered Alimon
+    #               >If No
+    #                   >Enter Battle function with next alive alimon
+    #
+    #           >Battle Loop (Check if Either Alimon is Dead)
+    #               >If Yes
+    #                   >If Trainer Alimon is dead
+    #                       >Check Trainer Has Other Alimons to send out
+    #                           >If Yes
+    #                               >Print list to choose from, make sure to mark dead Alimons
+    #                               >send out new Alimon and continue battle loop
+    #                           >If No
+    #                               >Print Loss Message and Return Trainer to main menu
+    #                   >If Opposing Alimon is dead
+    #                       >Proceed to Gain EXP function with current Alimon
+    #               >If No
+    #                   >Print Menu of Attacks
+    #                   >Prompt user to choose from menu
+    #                   >Decided what NPC Alimon is attacking with
+    #                   >Calculate Speed of both to see who attacks first
+    #                   >Print out attacks and calculate damage to reflect it
+
+    def battle(self, trainer_alimon, opp_alimon):
+        pass
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     #                                          RANDOM CHOICE FUNCTION
     #   @param self, target list you want to choose from, optional weighted list if you want the values weight, and then the number of choices you want picked
