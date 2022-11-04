@@ -25,6 +25,14 @@ import random
 ################################################################################################################################
 #
 #
+#version 0.095
+#CHANGE LOG 11/3/2022
+#   Added growth rate, currentHP, attack_list to Alimon Object
+#   Added implmentation for saving and loading new features added to the Alimon object
+#   Added Generate Random Alimon Function in order to do so on command
+#   Added logic for printing alimon encounters
+#
+#   TODO: Battle Logic
 #version 0.09
 #CHANGE LOG 11/1/2022
 #   Added stats to Alimon
@@ -201,7 +209,6 @@ class Game:
         self.load_attack_list(attackList)
         #If no trainer profile is provided, this means its a new game so lets create a new Trainer!
 
-
         num_of_menu_choices = len(self.menu_choices)
         choice_num = 1
         select_num = 1
@@ -360,36 +367,45 @@ class Game:
                 ali_info = alimon.strip("[]").split(",")
                 name = ali_info[0]
                 lvl = ali_info[1]
-                exp = ali_info[2]
-                is_shiny = (ali_info[3] == "True")
-                stats = ali_info[4].strip("[]").split(",")
+                currenthp = ali_info[2]
+                exp = ali_info[3]
+                is_shiny = (ali_info[4] == "True")
+                stats = ali_info[5].strip("[]").split("?")
+                print(stats)
                 newStatDict = {}
-                newStatDict["attack"] = int(stats[0])
-                newStatDict["defense"] = int(stats[1])
-                newStatDict["spattack"] = int(stats[2])
-                newStatDict["spdefense"] = int(stats[3])
-                newStatDict["speed"] = int(stats[4])
-                newStatDict["accuracy"] = int(stats[5])
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, (lvl),
-                                    int(exp), is_shiny)
+                newStatDict["health"] = int(stats[0])
+                newStatDict["attack"] = int(stats[1])
+                newStatDict["defense"] = int(stats[2])
+                newStatDict["sp.atk"] = int(stats[3])
+                newStatDict["sp.def"] = int(stats[4])
+                newStatDict["speed"] = int(stats[5])
+                newStatDict["accuracy"] = int(stats[6])
+                atks = ali_info[6].strip("[]").split("?")
+                growth_rate = self.ali_list[name].growth_rate
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict,atks, growth_rate, (lvl),
+                                    int(exp), is_shiny, currenthp=int(currenthp))
                 trainer_team.append(new_alimon)
 
             for alimon in trainer_info[5].split("+"):
                 ali_info = alimon.strip("[]").split(",")
                 name = ali_info[0]
                 lvl = ali_info[1]
-                exp = ali_info[2]
-                is_shiny = bool(ali_info[3])
-                stats = ali_info[4].strip("[]").split(",")
+                currenthp = ali_info[2]
+                exp = ali_info[3]
+                is_shiny = bool(ali_info[4])
+                stats = ali_info[5].strip("[]").split("?")
                 newStatDict = {}
-                newStatDict["attack"] = int(stats[0])
-                newStatDict["defense"] = int(stats[1])
-                newStatDict["spattack"] = int(stats[2])
-                newStatDict["spdefense"] = int(stats[3])
-                newStatDict["speed"] = int(stats[4])
-                newStatDict["accuracy"] = int(stats[5])
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, int(lvl),
-                                    int(exp), is_shiny)
+                newStatDict["health"] = int(stats[0])
+                newStatDict["attack"] = int(stats[1])
+                newStatDict["defense"] = int(stats[2])
+                newStatDict["sp.atk"] = int(stats[3])
+                newStatDict["sp.def"] = int(stats[4])
+                newStatDict["speed"] = int(stats[5])
+                newStatDict["accuracy"] = int(stats[6])
+                atks = ali_info[6].strip("[]").split("?")
+                growth_rate = self.ali_list[name].growth_rate
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, atks,growth_rate, int(lvl),
+                                    int(exp), is_shiny,currenthp=int(currenthp))
                 trainer_pc.append(new_alimon)
             money = int(trainer_info[6])
             self.main_trainer = Trainer(trainer_info[0], trainer_info[1], trainer_bag, trainer_bag_count, trainer_team,
@@ -409,7 +425,9 @@ class Game:
                 name = alimon[0]
                 cap_rate = float(alimon[1])
                 enc_rate = float(alimon[2])
-                new_alimon = Alimon(name, cap_rate, enc_rate)
+                base_stats = alimon[3].strip("[]").split(",")
+                growth_rate = alimon[4].strip("[]").split(",")
+                new_alimon = Alimon(name, cap_rate, enc_rate,stats=base_stats,growth_rate=growth_rate)
                 self.ali_list[name] = new_alimon
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -429,7 +447,7 @@ class Game:
                 accuracy = float(attack[3])
                 stat_change = attack[4]
                 description = attack[5]
-            self.attack_list[name] = Attack(name,type,damage,accuracy,stat_change,description)
+                self.attack_list[name] = Attack(name,type,damage,accuracy,stat_change,description)
     # ---------------------------------------------------------------------------------------------------------------
     #                                          SAVE GAME FUNCTION
     #   @param Self, name of file to save to
@@ -459,8 +477,9 @@ class Game:
                             newStr = ""
                             for item in each:
                                 if(isinstance(item, Alimon)):
-                                    statStr = "[{stat1},{stat12},{stat3},{stat4},{stat5},{stat6}".format(stat1 = item.stats[0],stat2 = item.stats[1],stat3 = item.stats[2],stat4 = item.stats[3],stat5 = item.stats[4],stat6 = item.stats[5])
-                                    newStr += "[{name},{lvl},{exp},{isShiny}.{stats}]".format(name=item.name,lvl=item.level,exp=item.exp,isShiny=item.is_shiny,stats = statStr) + "+"
+                                    statStr = "[{stat1}?{stat2}?{stat3}?{stat4}?{stat5}?{stat6}?{stat7}]".format(stat1 = item.stats["health"],stat2 = item.stats["attack"],stat3 = item.stats["defense"],stat4 = item.stats["sp.atk"],stat5 = item.stats["sp.def"],stat6 = item.stats["speed"],stat7 = item.stats["accuracy"])
+                                    atkList = "[{atk1}?{atk2}?{atk3}?{atk4}]".format(atk1 = item.attack_list[0],atk2 = item.attack_list[1],atk3 = item.attack_list[2],atk4 = item.attack_list[3])
+                                    newStr += "[{name},{lvl},{hp},{exp},{isShiny},{stats},{atkList}]".format(name=item.name,lvl=item.level,exp=item.exp,isShiny=item.is_shiny,stats = statStr, atkList = atkList, hp= item.currenthp) + "+"
                                 else:
                                     newStr += str(item) + "+"
                             newStr = newStr.rstrip("+")
@@ -734,12 +753,28 @@ class Game:
             print("================================")
             print("|          {alimon}            |".format(alimon =alimon.name))
             print("================================")
-            print("--------------------------------------------------------------------------------------------")
+            print("--------------------------------------------------------------------------------------------\n")
             if(trainer == None):
                 print(self.ali_list[alimon.name])
             else:
-                print(ali_postion)
+                selected_alimon = trainer.ali_team[ali_postion]
                 print(trainer.ali_team[ali_postion])
+                print("********Stats********")
+                print("*HP:           {HP}".format(HP=selected_alimon.stats["health"]))
+                print("*Attack:           {atk}".format(atk = selected_alimon.stats["attack"]))
+                print("*Defense:          {defense}".format(defense= selected_alimon.stats["defense"]))
+                print("*Sp.Atk:           {spatk}".format(spatk = selected_alimon.stats["sp.atk"]))
+                print("*Sp.Def:           {spdef}".format(spdef = selected_alimon.stats["sp.def"]))
+                print("*Speed:            {speed}".format(speed =selected_alimon.stats["speed"]))
+                print("*Accuracy:         {accuracy}".format(accuracy= selected_alimon.stats["accuracy"]))
+                print("*********************")
+                print("<     Attacks     >")
+                print("     {attack1}     ".format(attack1 = selected_alimon.attack_list[0]))
+                print("     {attack2}     ".format(attack2=selected_alimon.attack_list[1]))
+                print("     {attack3}     ".format(attack3=selected_alimon.attack_list[2]))
+                print("     {attack4}     ".format(attack4=selected_alimon.attack_list[3]))
+
+
             print("--------------------------------------------------------------------------------------------")
         else:
             print("Sorry that Alimon does not exist")
@@ -762,24 +797,34 @@ class Game:
 
         #Create new Alimon For Trainer to battle or catch
         self.in_encounter = True
-        weighted_list = []
-        for alimon in self.ali_list:
-            weighted_list.append(self.ali_list[alimon].encounter_rate)
-        encountered_alimon = self.ali_list[self.random_choice(self.ali_list, weighted_list, 1)[0]]
-        is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate,1-encountered_alimon.shiny_rate], 1)[0]
-        level = self.random_choice(range(1,51), None, 1)[0]
-        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate, level)
-        new_alimon.is_shiny = is_shiny
-        print(new_alimon)
+        new_alimon = self.generate_random_alimon()
 
+        curTrainerAlimon = trainer.ali_team[0]
         #Prompt Trainer
         correct_choice = 0
         while (correct_choice == 0):
             shiny_prompt = ""
-            if(is_shiny):
+            if(new_alimon.is_shiny):
                 shiny_prompt = " AND ITS SHINY!!!"
-            print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level= level) + shiny_prompt)
-            print("Battle (not Implemented)\nParty\nBag\nRun")
+            print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level= new_alimon.level) + shiny_prompt)
+            time.sleep(2)
+            os.system('cls')
+            print("                                    ********{opp_alimon} lvl{lvl}*********".format(opp_alimon=new_alimon.name,lvl=new_alimon.level))
+            hp_text = ""
+            for each in range(0,int(round(new_alimon.currenthp/new_alimon.stats[0],1)*10)):
+                hp_text += "="
+            print("                                    *HP:{hp_text}".format(hp_text=hp_text))
+            print("                                    *{currenthp}/{max_hp}              ".format(currenthp=new_alimon.currenthp, max_hp=new_alimon.stats[0]))
+            print("                                    ******************************")
+            print("\n\n")
+            hp_text = ""
+            for each in range(0,int(round(curTrainerAlimon.currenthp/curTrainerAlimon.stats["health"],1)*10)):
+                hp_text += "="
+            print("********{your_alimon} lvl{lvl}*********".format(your_alimon=curTrainerAlimon.name, lvl=curTrainerAlimon.level))
+            print("*HP:{hp_text}".format(hp_text=hp_text))
+            print("*{currenthp}/{max_hp}".format(currenthp=curTrainerAlimon.currenthp, max_hp=curTrainerAlimon.stats["health"]))
+            print("*********************************")
+            print("Battle\nParty\nBag\nRun")
             try:
                 answer = input().upper().strip()
             except:
@@ -1080,7 +1125,57 @@ class Game:
     #                   >Print out attacks and calculate damage to reflect it
 
     def battle(self, trainer_alimon, opp_alimon):
-        pass
+        num_of_menu_choices = 4
+        choice_num = 1
+        select_num = 1
+        end_battle = False
+        while (not end_battle):
+            # MENU CHOICES PRINTING LOGIC
+            for choice in trainer_alimon.attack_list:
+                if (select_num == choice_num):
+                    print(">{choice_num}.".format(choice_num=choice_num) + choice)
+                    choice_num += 1
+                    current_choice = choice
+                else:
+                    print("{choice_num}.".format(choice_num=choice_num) + choice)
+                    choice_num += 1
+            choice_num = 1
+            print("What will you do now? (DOWN, UP, ENTER, BACK)")
+            # Try to turn input uppercase
+            try:
+                answer = input().upper().strip()
+            except:
+                os.system('cls')
+                print("That is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
+            if (answer == "DOWN"):
+                if (select_num == num_of_menu_choices):
+                    select_num = 1
+                    os.system('cls')
+                else:
+                    select_num += 1
+                    os.system('cls')
+            elif (answer == "UP"):
+                if (select_num == 1):
+                    select_num = num_of_menu_choices
+                    os.system('cls')
+                else:
+                    select_num -= 1
+                    os.system('cls')
+            elif (answer == "ENTER"):
+               os.system("cls")
+               print("{trainermon} used {atk_name}!".format(trainmon= trainer_alimon.name, atk_name=current_choice))
+               time.sleep(2)
+
+            elif (answer == "BACK"):
+                end_battle = True
+                # IF answer is invalid, print a message and have them choose again
+            else:
+                os.system('cls')
+                print("Sorry that is not a valid choice")
+                time.sleep(2)
+                os.system('cls')
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     #                                          RANDOM CHOICE FUNCTION
     #   @param self, target list you want to choose from, optional weighted list if you want the values weight, and then the number of choices you want picked
@@ -1101,3 +1196,23 @@ class Game:
             os.system('cls')
         else:
             return random.choices(list(target_list), weights=weighted_list, k=num_of_choices)
+
+    def generate_random_alimon(self):
+        weighted_list = []
+        for alimon in self.ali_list:
+            weighted_list.append(self.ali_list[alimon].encounter_rate)
+        encountered_alimon = self.ali_list[self.random_choice(self.ali_list, weighted_list, 1)[0]]
+        is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate, 1 - encountered_alimon.shiny_rate], 1)[0]
+        level = self.random_choice(range(1, 51), None, 1)[0]
+        stats = []
+        stats.append(int(encountered_alimon.stats[0]) + round(int(encountered_alimon.stats[0]) * float(encountered_alimon.growth_rate[0]) * int(level)))
+        stats.append(int(encountered_alimon.stats[1]) + round(int(encountered_alimon.stats[1]) * float(encountered_alimon.growth_rate[1]) * int(level)))
+        stats.append(int(encountered_alimon.stats[2]) + round(int(encountered_alimon.stats[2]) * float(encountered_alimon.growth_rate[2]) * int(level)))
+        stats.append(int(encountered_alimon.stats[3]) + round(int(encountered_alimon.stats[3]) * float(encountered_alimon.growth_rate[3]) * int(level)))
+        stats.append(int(encountered_alimon.stats[4]) + round(int(encountered_alimon.stats[4]) * float(encountered_alimon.growth_rate[4]) * int(level)))
+        stats.append(int(encountered_alimon.stats[5]) + round(int(encountered_alimon.stats[5]) * float(encountered_alimon.growth_rate[5]) * int(level)))
+        stats.append(int(encountered_alimon.stats[6]) + round(int(encountered_alimon.stats[6]) * float(encountered_alimon.growth_rate[6]) * int(level)))
+        attack_list = ["headbutt","hate raid","--","--"]
+        currenthp = stats[0]
+        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate,stats=stats, growth_rate=encountered_alimon.growth_rate, attack_list=attack_list, is_shiny=is_shiny, currenthp=currenthp)
+        return new_alimon

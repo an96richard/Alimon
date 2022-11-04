@@ -1,6 +1,6 @@
 import keyboard
 
-list = [1,1,2,3]
-print(list)
+b = 0.86
+print(round(b,1) * 10)
 
 
