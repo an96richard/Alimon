@@ -25,6 +25,15 @@ import random
 ################################################################################################################################
 #
 #
+#version 0.099
+#CHANGE LOG 11/11/2022
+#   Finished most of the Battle Logic
+#       -Implemented Turned Based Battle
+#       -Implemented Damage Calculations
+#       -Implemented Fainted check
+#   Fixed Bug in Generate Alimon function to give it correct stats
+#   TODO: Finish battle logic for stat changes, finish EXP calculations for after battle procedures
+#
 #version 0.095
 #CHANGE LOG 11/3/2022
 #   Added growth rate, currentHP, attack_list to Alimon Object
@@ -102,58 +111,6 @@ import random
 #           -Item
 #           -View Info (CHECK)
 #           -Release
-#
-#   -Battling
-#       -Pseudo Code
-#           >Check if front most Alimon is alive
-#               >If yes
-#                   >Enter battle function with front most Alimon and Encountered Alimon
-#               >If No
-#                   >Enter Battle function with next alive alimon
-#
-#           >Battle Loop (Check if Either Alimon is Dead)
-#               >If Yes
-#                   >If Trainer Alimon is dead
-#                       >Check Trainer Has Other Alimons to send out
-#                           >If Yes
-#                               >Print list to choose from, make sure to mark dead Alimons
-#                               >send out new Alimon and continue battle loop
-#                           >If No
-#                               >Print Loss Message and Return Trainer to main menu
-#                   >If Opposing Alimon is dead
-#                       >Proceed to Gain EXP function with current Alimon
-#               >If No
-#                   >Print Menu of Attacks
-#                   >Prompt user to choose from menu
-#                   >Decided what NPC Alimon is attacking with
-#                   >Calculate Speed of both to see who attacks first
-#                   >Print out attacks and calculate damage to reflect it
-#
-#       -Stats
-#           >Alimons stats held in Dict (Atk: Int, Speed: Int)
-#           >Alimon stats in text file should be list that holds values in order (Atk, Def, Sp. Atk, Sp. Def, Speed, Accuracy)
-#           >When Loading Alimon, take value and assign them to proper dict values.
-#       -Attacks
-#           -List of Attacks
-#               -Should we incorporate basic attacks to test? Probably
-#               -Basic Attacks that deal damage
-#               -Attack Object?
-#                   -Name
-#                   -Type
-#                       -Physical
-#                       -Special
-#                   -Damage
-#                   -Accuracy
-#                   -Description
-#               -Loading Attacks from file
-#           -Menu For Attack moves
-#           -Attack logic
-#               -Calculate damage based on Stats
-#               -Turn based combat
-#           -Wild Alimon Attacks
-#
-#
-#
 #       -HP
 #       -EXP Gain
 #
@@ -426,8 +383,16 @@ class Game:
                 cap_rate = float(alimon[1])
                 enc_rate = float(alimon[2])
                 base_stats = alimon[3].strip("[]").split(",")
+                base_stat_dict = {}
+                base_stat_dict["health"] = int(base_stats[0])
+                base_stat_dict["attack"] = int(base_stats[1])
+                base_stat_dict["defense"] = int(base_stats[2])
+                base_stat_dict["sp.atk"] = int(base_stats[3])
+                base_stat_dict["sp.def"] = int(base_stats[4])
+                base_stat_dict["speed"] = int(base_stats[5])
+                base_stat_dict["accuracy"] = int(base_stats[6])
                 growth_rate = alimon[4].strip("[]").split(",")
-                new_alimon = Alimon(name, cap_rate, enc_rate,stats=base_stats,growth_rate=growth_rate)
+                new_alimon = Alimon(name, cap_rate, enc_rate,stats=base_stat_dict,growth_rate=growth_rate)
                 self.ali_list[name] = new_alimon
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -447,7 +412,7 @@ class Game:
                 accuracy = float(attack[3])
                 stat_change = attack[4]
                 description = attack[5]
-                self.attack_list[name] = Attack(name,type,damage,accuracy,stat_change,description)
+                self.attack_list[name] = Attack(name=name,type=type,damage=damage,accuracy=accuracy,stat_change=stat_change,description=description)
     # ---------------------------------------------------------------------------------------------------------------
     #                                          SAVE GAME FUNCTION
     #   @param Self, name of file to save to
@@ -532,7 +497,7 @@ class Game:
     #   -If user selects an Alimon options will appear allowing user to manipulate selected Alimon
     #   -If in-encounter is TRUE different options will be available for each Alimon
     # ---------------------------------------------------------------------------------------------------------------
-    def view_party(self, swap_position=None):
+    def view_party(self, swap_position=None, force_swap = False):
         os.system('cls')
         num_of_alimon = len(self.main_trainer.ali_team)
         if(num_of_alimon == 0):
@@ -596,6 +561,12 @@ class Game:
                     # If user is selecting the first alimon in the party and is not trying to swap
                     if(select_num == 1 and swap_position == None):
                         menu_choices = ["Item", "Summary", "Back"]
+                    # If your alimon fainted and needs to be swapped out immediately
+                    elif(self.main_trainer.ali_team[select_num-1].currenthp == 0):
+                        os.system('cls')
+                        print("You Cannot Send Out An Alimon with 0HP!")
+                        time.sleep(2)
+                        os.system('cls')
                     # If the selected alimon is being swapped with itself
                     elif(select_num == swap_position):
                         os.system('cls')
@@ -683,12 +654,20 @@ class Game:
                         elif(curr_choice == "Summary"):
                             self.print_alimon_info(current_alimon, select_num-1, self.main_trainer)
                         elif(curr_choice == "Switch"):
-                            self.view_party(select_num)
-                            os.system('cls')
-                            print("You sent out {alimon}!".format(alimon = current_alimon.name))
-                            time.sleep(2)
-                            os.system('cls')
-                            return
+                            if(force_swap == True):
+                                self.swap_alimon_position(select_num-1, 0)
+                                os.system('cls')
+                                print("You sent out {alimon}!".format(alimon=current_alimon.name))
+                                time.sleep(2)
+                                os.system('cls')
+                                return
+                            else:
+                                self.view_party(select_num)
+                                os.system('cls')
+                                print("You sent out {alimon}!".format(alimon = current_alimon.name))
+                                time.sleep(2)
+                                os.system('cls')
+                                return
                         elif(curr_choice == "Move"):
                             self.view_party(select_num)
                             return
@@ -799,22 +778,40 @@ class Game:
         self.in_encounter = True
         new_alimon = self.generate_random_alimon()
 
-        curTrainerAlimon = trainer.ali_team[0]
+
+        shiny_prompt = ""
+        if (new_alimon.is_shiny):
+            shiny_prompt = " AND ITS SHINY!!!"
+        print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level=new_alimon.level) + shiny_prompt)
+        time.sleep(2)
+        os.system('cls')
+
+
         #Prompt Trainer
         correct_choice = 0
         while (correct_choice == 0):
-            shiny_prompt = ""
-            if(new_alimon.is_shiny):
-                shiny_prompt = " AND ITS SHINY!!!"
-            print("You Have Encountered {name} lvl {level}! What Would You Like To Do?".format(name=new_alimon.name, level= new_alimon.level) + shiny_prompt)
-            time.sleep(2)
-            os.system('cls')
+            #Sets primary Alimon to the first index
+            alimons_that_battled = []
+            curr_alimon_index = 0
+            curTrainerAlimon = trainer.ali_team[curr_alimon_index]
+            # If all Alimons have fainted, black out trainer and return them to main menu
+            if(curr_alimon_index > len(trainer.ali_team)):
+                print("You Blacked Out!")
+                return
+            # If the first index Alimon has 0 HP set next Alimon as primary
+
+            while(curTrainerAlimon.currenthp == 0):
+                curr_alimon_index+=1
+                continue
+
+            if(curTrainerAlimon not in alimons_that_battled):
+                alimons_that_battled.append(curTrainerAlimon)
             print("                                    ********{opp_alimon} lvl{lvl}*********".format(opp_alimon=new_alimon.name,lvl=new_alimon.level))
             hp_text = ""
-            for each in range(0,int(round(new_alimon.currenthp/new_alimon.stats[0],1)*10)):
+            for each in range(0,int(round(new_alimon.currenthp/new_alimon.stats["health"],1)*10)):
                 hp_text += "="
             print("                                    *HP:{hp_text}".format(hp_text=hp_text))
-            print("                                    *{currenthp}/{max_hp}              ".format(currenthp=new_alimon.currenthp, max_hp=new_alimon.stats[0]))
+            print("                                    *{currenthp}/{max_hp}              ".format(currenthp=round(new_alimon.currenthp), max_hp=new_alimon.stats["health"]))
             print("                                    ******************************")
             print("\n\n")
             hp_text = ""
@@ -822,7 +819,7 @@ class Game:
                 hp_text += "="
             print("********{your_alimon} lvl{lvl}*********".format(your_alimon=curTrainerAlimon.name, lvl=curTrainerAlimon.level))
             print("*HP:{hp_text}".format(hp_text=hp_text))
-            print("*{currenthp}/{max_hp}".format(currenthp=curTrainerAlimon.currenthp, max_hp=curTrainerAlimon.stats["health"]))
+            print("*{currenthp}/{max_hp}".format(currenthp=round(curTrainerAlimon.currenthp), max_hp=curTrainerAlimon.stats["health"]))
             print("*********************************")
             print("Battle\nParty\nBag\nRun")
             try:
@@ -834,7 +831,24 @@ class Game:
                 os.system('cls')
             if (answer == "BATTLE"):
                 os.system('cls')
-                print("Sorry this has not been implemented yet, please RUN or BAG")
+                turns = self.battle(curTrainerAlimon, new_alimon)
+                if(new_alimon.currenthp <= 0):
+                    os.system('cls')
+                    print("{alimon} fainted!".format(alimon=new_alimon.name))
+                    time.sleep(2)
+                    os.system('cls')
+                    self.exp_calculations(alimons_that_battled, new_alimon, turns)
+                elif(curTrainerAlimon.currenthp <= 0):
+                    for alimon in self.main_trainer.ali_team:
+                        if (alimon.currenthp != 0):
+                            os.system('cls')
+                            print("Your {alimon} fainted!".format(alimon=curTrainerAlimon.name))
+                            time.sleep(2)
+                            os.system('cls')
+                            self.view_party(force_swap=True)
+                            continue
+                        else:
+                            continue
                 time.sleep(2)
                 os.system('cls')
             elif (answer == "PARTY"):
@@ -1097,34 +1111,23 @@ class Game:
             os.system('cls')
             return True
 
-    #   -Battling
-    #       -Pseudo Code
-    #           (Pre Encounter Logic)
-    #           >Check if front most Alimon is alive
-    #               >If yes
-    #                   >Enter battle function with front most Alimon and Encountered Alimon
-    #               >If No
-    #                   >Enter Battle function with next alive alimon
-    #
-    #           >Battle Loop (Check if Either Alimon is Dead)
-    #               >If Yes
-    #                   >If Trainer Alimon is dead
-    #                       >Check Trainer Has Other Alimons to send out
-    #                           >If Yes
-    #                               >Print list to choose from, make sure to mark dead Alimons
-    #                               >send out new Alimon and continue battle loop
-    #                           >If No
-    #                               >Print Loss Message and Return Trainer to main menu
-    #                   >If Opposing Alimon is dead
-    #                       >Proceed to Gain EXP function with current Alimon
-    #               >If No
-    #                   >Print Menu of Attacks
-    #                   >Prompt user to choose from menu
-    #                   >Decided what NPC Alimon is attacking with
-    #                   >Calculate Speed of both to see who attacks first
-    #                   >Print out attacks and calculate damage to reflect it
 
+
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------
+    #                                          BATTLE FUNCTION
+    #   @param Self, trainer's Alimon, and opposing Alimon
+    #   @return number of turns that passed during the battle
+    #   -Prints out all available attacks Trainer ALimon can use and promps user to select one
+    #   -If trainer selects an attack, increment Turns by 1, randomly choose an attack for opposing Alimon to use.
+    #   -Then calculate how much damage both attacks will do
+    #   -Then Compare Speed stats to see which Alimon will Attack first
+    #   -Then commence turn based combat while checking if either Alimon has fainted during the battle.
+    #       -In Turn Based combat, damage calculation is done (depeneding on type of attack) using stats from both Alimons (Attack, Defense, Sp.Atk, Sp.Def)
+    #   TODO: Fix damage calculations, Apply stat change effects
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     def battle(self, trainer_alimon, opp_alimon):
+        turns = 0
         num_of_menu_choices = 4
         choice_num = 1
         select_num = 1
@@ -1164,10 +1167,178 @@ class Game:
                     select_num -= 1
                     os.system('cls')
             elif (answer == "ENTER"):
-               os.system("cls")
-               print("{trainermon} used {atk_name}!".format(trainmon= trainer_alimon.name, atk_name=current_choice))
-               time.sleep(2)
 
+                #Increment Turns
+                turns +=1
+
+                #Calculate how much damage the attack from the opposing alimon is gonna do
+                opp_alimon_attack = random.choice(opp_alimon.attack_list)
+                while(opp_alimon_attack == "--"):
+                    opp_alimon_attack = random.choice(opp_alimon.attack_list)
+                opp_attack_type = self.attack_list[opp_alimon_attack].type
+                if(opp_attack_type == "physical"):
+                    damage_from_opp_attack = self.attack_list[opp_alimon_attack].damage + (opp_alimon.stats["attack"]/10)
+                else:
+                    damage_from_opp_attack = self.attack_list[opp_alimon_attack].damage + (opp_alimon.stats["sp.atk"]/10)
+
+
+
+                #Calculate how much damage the attack from the trainer is going to do
+                trainer_alimon_attack = current_choice
+                trainer_attack_type = self.attack_list[trainer_alimon_attack].type
+                if(trainer_attack_type == "physical"):
+                    damage_from_trainer_attack = self.attack_list[trainer_alimon_attack].damage + (trainer_alimon.stats["attack"]/10)
+                else:
+                    damage_from_trainer_attack = self.attack_list[trainer_alimon_attack].damage + (trainer_alimon.stats["sp.atk"]/10)
+
+
+                #Decide who is going to attack first
+                first_attacker = (trainer_alimon.stats["speed"] > opp_alimon.stats["speed"])
+
+
+                #If Trainer's Alimon is faster, it attacks first
+                if(first_attacker == True):
+                    os.system("cls")
+                    print("{trainermon} used {atk_name}!".format(trainermon= trainer_alimon.name, atk_name=current_choice))
+                    time.sleep(2)
+                    os.system('cls')
+                    #Alimon's accuracy/10 + attack's base accuracy * 100 to get whole number rounded.
+                    attack_accuracy = round((self.attack_list[trainer_alimon_attack].accuracy+(trainer_alimon.stats["accuracy"]/10))*100)
+
+                    if(attack_accuracy < 100):
+                        weighted_list = [attack_accuracy, 100-attack_accuracy]
+                        boolean_list = [True, False]
+                        hit_or_miss = random.choices(boolean_list, weights= weighted_list, k=1)
+                    else:
+                        hit_or_miss = True
+
+                    #If random choice chose True (attack lands) calculate damage
+                    if(hit_or_miss):
+                        if(trainer_attack_type == "physical"):
+                            opp_alimon_damage = damage_from_trainer_attack - (opp_alimon.stats["defense"]/5)
+                        else:
+                            opp_alimon_damage = damage_from_trainer_attack - (opp_alimon.stats["sp.def"] / 5)
+
+                        if(opp_alimon_damage < 0):
+                            opp_alimon_damage = 0
+                        print("{opp_alimon} took {damage} from the attack!".format(opp_alimon=opp_alimon.name, damage=round(opp_alimon_damage)))
+                        opp_alimon.currenthp -= opp_alimon_damage
+                        time.sleep(2)
+                        os.system('cls')
+                    else:
+                        print("But it Missed!")
+                        time.sleep(2)
+                #If False, opposing Alimon attacks first
+                else:
+                    os.system("cls")
+                    print("{opp_mon} used {atk_name}!".format(opp_mon=opp_alimon.name, atk_name=current_choice))
+                    time.sleep(2)
+                    os.system('cls')
+                    # Alimon's accuracy/10 + attack's base accuracy * 100 to get whole number rounded.
+                    attack_accuracy = round((self.attack_list[opp_alimon_attack].accuracy + (
+                                opp_alimon.stats["accuracy"] / 10)) * 100)
+                    if (attack_accuracy < 100):
+                        weighted_list = [attack_accuracy, 100 - attack_accuracy]
+                        boolean_list = [True, False]
+                        hit_or_miss = random.choices(boolean_list, weights=weighted_list, k=1)
+                    else:
+                        hit_or_miss = True
+
+                    # If random choice chose True (attack lands) calculate damage
+                    if (hit_or_miss):
+                        if (opp_attack_type == "physical"):
+                            trainer_alimon_damage = damage_from_opp_attack - (trainer_alimon.stats["defense"] / 5)
+                        else:
+                            trainer_alimon_damage = damage_from_opp_attack - (trainer_alimon.stats["sp.def"] / 5)
+
+                        if (trainer_alimon_damage < 0):
+                            trainer_alimon_damage = 0
+                        print("{trainer_alimon} took {damage} from the attack!".format(trainer_alimon=trainer_alimon.name,damage=round(trainer_alimon_damage)))
+                        trainer_alimon.currenthp -= trainer_alimon_damage
+                        time.sleep(2)
+                        os.system('cls')
+                    else:
+                        print("But it Missed!")
+                        time.sleep(2)
+
+                print(trainer_alimon.currenthp)
+                print(opp_alimon.currenthp)
+                time.sleep(3)
+                if (trainer_alimon.currenthp <= 0 or opp_alimon.currenthp <= 0):
+                    return turns
+
+                #Same logic as above but reversed depending who attacked first
+                if (first_attacker == True):
+                    os.system("cls")
+                    print("{opp_mon} used {atk_name}!".format(opp_mon=opp_alimon.name, atk_name=current_choice))
+                    time.sleep(2)
+                    os.system('cls')
+                    # Alimon's accuracy/10 + attack's base accuracy * 100 to get whole number rounded.
+                    attack_accuracy = round((self.attack_list[opp_alimon_attack].accuracy + (
+                            opp_alimon.stats["accuracy"] / 10)) * 100)
+                    if (attack_accuracy < 100):
+                        weighted_list = [attack_accuracy, 100 - attack_accuracy]
+                        boolean_list = [True, False]
+                        hit_or_miss = random.choices(boolean_list, weights=weighted_list, k=1)
+                    else:
+                        hit_or_miss = True
+
+                    # If random choice chose True (attack lands) calculate damage
+                    if (hit_or_miss):
+                        if (opp_attack_type == "physical"):
+                            trainer_alimon_damage = damage_from_opp_attack - (trainer_alimon.stats["defense"] / 5)
+                        else:
+                            trainer_alimon_damage = damage_from_opp_attack - (trainer_alimon.stats["sp.def"] / 5)
+
+                        if (trainer_alimon_damage < 0):
+                            trainer_alimon_damage = 0
+                        print("{trainer_alimon} took {damage} from the attack!".format(trainer_alimon=trainer_alimon.name, damage=round(trainer_alimon_damage)))
+                        trainer_alimon.currenthp -= trainer_alimon_damage
+                        time.sleep(2)
+                        os.system('cls')
+                    else:
+                        print("But it Missed!")
+                        time.sleep(2)
+                else:
+                    os.system("cls")
+                    print(
+                        "{trainermon} used {atk_name}!".format(trainermon=trainer_alimon.name, atk_name=current_choice))
+                    time.sleep(2)
+                    os.system('cls')
+                    # Alimon's accuracy/10 + attack's base accuracy * 100 to get whole number rounded.
+                    attack_accuracy = round((self.attack_list[trainer_alimon_attack].accuracy + (
+                            trainer_alimon.stats["accuracy"] / 10)) * 100)
+                    if (attack_accuracy < 100):
+                        weighted_list = [attack_accuracy, 100 - attack_accuracy]
+                        boolean_list = [True, False]
+                        hit_or_miss = random.choices(boolean_list, weights=weighted_list, k=1)
+                    else:
+                        hit_or_miss = True
+
+                    # If random choice chose True (attack lands) calculate damage
+                    if (hit_or_miss):
+                        if (trainer_attack_type == "physical"):
+                            opp_alimon_damage = damage_from_trainer_attack - (opp_alimon.stats["defense"] / 5)
+                        else:
+                            opp_alimon_damage = damage_from_trainer_attack - (opp_alimon.stats["sp.def"] / 5)
+
+                        if (opp_alimon_damage < 0):
+                            opp_alimon_damage = 0
+                        print("{opp_alimon} took {damage} from the attack!".format(opp_alimon=opp_alimon.name, damage=round(opp_alimon_damage)))
+                        opp_alimon.currenthp -= opp_alimon_damage
+                        time.sleep(2)
+                        os.system('cls')
+                    else:
+                        print("But it Missed!")
+                        time.sleep(2)
+
+                print(trainer_alimon.currenthp)
+                print(opp_alimon.currenthp)
+                time.sleep(3)
+                if (trainer_alimon.currenthp <= 0 or opp_alimon.currenthp <= 0):
+                    return turns
+
+                end_battle = True
             elif (answer == "BACK"):
                 end_battle = True
                 # IF answer is invalid, print a message and have them choose again
@@ -1176,6 +1347,10 @@ class Game:
                 print("Sorry that is not a valid choice")
                 time.sleep(2)
                 os.system('cls')
+
+        return turns
+
+
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     #                                          RANDOM CHOICE FUNCTION
     #   @param self, target list you want to choose from, optional weighted list if you want the values weight, and then the number of choices you want picked
@@ -1197,22 +1372,38 @@ class Game:
         else:
             return random.choices(list(target_list), weights=weighted_list, k=num_of_choices)
 
+
+
+    #TODO: Finish EXP calculation function
+    def exp_calculations(self, list_of_alimons_battled, opp_alimon, turns):
+        pass
+
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------------------------
+    #                                          GENERATE RANDOM ALIMON FUNCTION
+    #   @param self
+    #   @return Random Alimon object
+    #   -Using a weighted list and the Random.choices function, we pick an Alimon from the Alidex.
+    #       -The weights are correspondant to the encounter rates of each Alimon.
+    #       -This function is going to be primarily used for the Encounter Function
+    #   -Once Alimon has been picked, we randomize all of it's stats by randomizing it's level, then using it's base stats and growth stats to formulate it's stats
+    # --------------------------------------------------------------------------------------------------------------------------------------------------------------
     def generate_random_alimon(self):
         weighted_list = []
         for alimon in self.ali_list:
             weighted_list.append(self.ali_list[alimon].encounter_rate)
         encountered_alimon = self.ali_list[self.random_choice(self.ali_list, weighted_list, 1)[0]]
-        is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate, 1 - encountered_alimon.shiny_rate], 1)[0]
-        level = self.random_choice(range(1, 51), None, 1)[0]
-        stats = []
-        stats.append(int(encountered_alimon.stats[0]) + round(int(encountered_alimon.stats[0]) * float(encountered_alimon.growth_rate[0]) * int(level)))
-        stats.append(int(encountered_alimon.stats[1]) + round(int(encountered_alimon.stats[1]) * float(encountered_alimon.growth_rate[1]) * int(level)))
-        stats.append(int(encountered_alimon.stats[2]) + round(int(encountered_alimon.stats[2]) * float(encountered_alimon.growth_rate[2]) * int(level)))
-        stats.append(int(encountered_alimon.stats[3]) + round(int(encountered_alimon.stats[3]) * float(encountered_alimon.growth_rate[3]) * int(level)))
-        stats.append(int(encountered_alimon.stats[4]) + round(int(encountered_alimon.stats[4]) * float(encountered_alimon.growth_rate[4]) * int(level)))
-        stats.append(int(encountered_alimon.stats[5]) + round(int(encountered_alimon.stats[5]) * float(encountered_alimon.growth_rate[5]) * int(level)))
-        stats.append(int(encountered_alimon.stats[6]) + round(int(encountered_alimon.stats[6]) * float(encountered_alimon.growth_rate[6]) * int(level)))
+        is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate, 1 - encountered_alimon.shiny_rate], 1)
+        level = self.random_choice(range(1, 51), None, 1)
+        stats = {"health":0,"attack":0,"defense":0,"sp.atk":0,"speed":0,"accuracy":0}
+        stats["health"] = (int(encountered_alimon.stats["health"]) + round(int(encountered_alimon.stats["health"]) * float(encountered_alimon.growth_rate[0]) * (int(level[0])/10)))
+        stats["attack"] = (int(encountered_alimon.stats["attack"]) + round(int(encountered_alimon.stats["attack"]) * float(encountered_alimon.growth_rate[1]) * int(level[0])/10))
+        stats["defense"] = (int(encountered_alimon.stats["defense"]) + round(int(encountered_alimon.stats["defense"]) * float(encountered_alimon.growth_rate[2]) * int(level[0])/10))
+        stats["sp.atk"] = (int(encountered_alimon.stats["sp.atk"]) + round(int(encountered_alimon.stats["sp.atk"]) * float(encountered_alimon.growth_rate[3]) * int(level[0])/10))
+        stats["sp.def"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[4]) * int(level[0])/10))
+        stats["speed"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[5]) * int(level[0])/10))
+        stats["accuracy"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[6]) * int(level[0])/10))
         attack_list = ["headbutt","hate raid","--","--"]
-        currenthp = stats[0]
-        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate,stats=stats, growth_rate=encountered_alimon.growth_rate, attack_list=attack_list, is_shiny=is_shiny, currenthp=currenthp)
+        currenthp = stats["health"]
+        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate,stats=stats,level= level[0], growth_rate=encountered_alimon.growth_rate, attack_list=attack_list, is_shiny=is_shiny[0], currenthp=currenthp)
         return new_alimon

@@ -1,7 +1,7 @@
 import math
 class Alimon:
     shiny_rate = 0.00001
-    def __init__(self, name, capture_rate, encounter_rate, stats=[0,0,0,0,0,0,0], attack_list=["","","",""], growth_rate = [0.0,0.0,0.0,0.0,0.0,0.0,0.0], level=1, exp =0, is_shiny = False, currenthp = 0):
+    def __init__(self, name, capture_rate, encounter_rate, stats={"health":0,"attack":0,"defense":0,"sp.atk":0,"speed":0,"accuracy":0}, attack_list=["","","",""], growth_rate = [0.0,0.0,0.0,0.0,0.0,0.0,0.0], level=1, exp =0, is_shiny = False, currenthp = 0):
         self.name = name
         self.level = level
         self.exp = exp
