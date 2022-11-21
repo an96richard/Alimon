@@ -24,6 +24,16 @@ import random
 #                              Welcome To Alimon, a new adventure created by Richie An                                         #
 ################################################################################################################################
 #
+##version 0.0998
+#CHANGE LOG 11/21/2022
+#   Implemented EXP Gain System
+#       -On Battle Win or Alimon Caught, calculates XP gain
+#       -If Alimon levels up, will print out and show changed stats *
+#   Implemented new Alimon traits, Base xp gain, xp growth rate
+#       -Using the Pokemon formula for xp gain, adjusted current alimons to have specific traits to calculate xp gain
+#
+#   TODO: Fix stats to display as int, fix stat growth to grow slower, fix alimon switch algorithm for when trainer alimon faints, implement xp distribution for multiple participants, battle logic for stat changes
+#
 #
 #version 0.099
 #CHANGE LOG 11/11/2022
@@ -338,8 +348,8 @@ class Game:
                 newStatDict["speed"] = int(stats[5])
                 newStatDict["accuracy"] = int(stats[6])
                 atks = ali_info[6].strip("[]").split("?")
-                growth_rate = self.ali_list[name].growth_rate
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict,atks, growth_rate, (lvl),
+                stat_growth_rate = self.ali_list[name].stat_growth_rate
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate),float(self.ali_list[name].base_xp_rate), self.ali_list[name].xp_growth_rate,newStatDict,atks, stat_growth_rate, int(lvl),
                                     int(exp), is_shiny, currenthp=int(currenthp))
                 trainer_team.append(new_alimon)
 
@@ -360,8 +370,8 @@ class Game:
                 newStatDict["speed"] = int(stats[5])
                 newStatDict["accuracy"] = int(stats[6])
                 atks = ali_info[6].strip("[]").split("?")
-                growth_rate = self.ali_list[name].growth_rate
-                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate), newStatDict, atks,growth_rate, int(lvl),
+                stat_growth_rate = self.ali_list[name].stat_growth_rate
+                new_alimon = Alimon(name, float(self.ali_list[name].capture_rate), float(self.ali_list[name].encounter_rate),float(self.ali_list[name].base_xp_rate),self.ali_list[name].xp_growth_rate, newStatDict, atks,stat_growth_rate, int(lvl),
                                     int(exp), is_shiny,currenthp=int(currenthp))
                 trainer_pc.append(new_alimon)
             money = int(trainer_info[6])
@@ -382,7 +392,9 @@ class Game:
                 name = alimon[0]
                 cap_rate = float(alimon[1])
                 enc_rate = float(alimon[2])
-                base_stats = alimon[3].strip("[]").split(",")
+                base_xp_rate = float(alimon[3])
+                xp_growth_rate = alimon[4]
+                base_stats = alimon[5].strip("[]").split(",")
                 base_stat_dict = {}
                 base_stat_dict["health"] = int(base_stats[0])
                 base_stat_dict["attack"] = int(base_stats[1])
@@ -391,8 +403,8 @@ class Game:
                 base_stat_dict["sp.def"] = int(base_stats[4])
                 base_stat_dict["speed"] = int(base_stats[5])
                 base_stat_dict["accuracy"] = int(base_stats[6])
-                growth_rate = alimon[4].strip("[]").split(",")
-                new_alimon = Alimon(name, cap_rate, enc_rate,stats=base_stat_dict,growth_rate=growth_rate)
+                stat_growth_rate = alimon[6].strip("[]").split(",")
+                new_alimon = Alimon(name, cap_rate, enc_rate,base_xp_rate,xp_growth_rate,stats= base_stat_dict,stat_growth_rate=stat_growth_rate)
                 self.ali_list[name] = new_alimon
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -791,6 +803,7 @@ class Game:
         correct_choice = 0
         while (correct_choice == 0):
             #Sets primary Alimon to the first index
+            turns = 1
             alimons_that_battled = []
             curr_alimon_index = 0
             curTrainerAlimon = trainer.ali_team[curr_alimon_index]
@@ -831,13 +844,14 @@ class Game:
                 os.system('cls')
             if (answer == "BATTLE"):
                 os.system('cls')
-                turns = self.battle(curTrainerAlimon, new_alimon)
+                turns = self.battle(curTrainerAlimon, new_alimon, turns)
                 if(new_alimon.currenthp <= 0):
                     os.system('cls')
                     print("{alimon} fainted!".format(alimon=new_alimon.name))
                     time.sleep(2)
                     os.system('cls')
                     self.exp_calculations(alimons_that_battled, new_alimon, turns)
+                    correct_choice = 1
                 elif(curTrainerAlimon.currenthp <= 0):
                     for alimon in self.main_trainer.ali_team:
                         if (alimon.currenthp != 0):
@@ -859,6 +873,7 @@ class Game:
                 os.system('cls')
                 end_battle = self.view_bag_in_battle(trainer, None, new_alimon)
                 if(end_battle):
+                    self.exp_calculations(alimons_that_battled, new_alimon,turns)
                     correct_choice=1
             elif (answer == "RUN"):
                 correct_choice = 1
@@ -1021,7 +1036,7 @@ class Game:
                             time.sleep(2)
                             os.system('cls')
                         else:
-                            self.main_trainer.remove_item(item, 1)
+                            self.main_trainer.remove_item(current_item, 1)
                             caught = self.catching_alimon(current_item, current_opp_alimon, trainer)
                             return caught
                     elif(current_item.type == "HEAL"):
@@ -1126,8 +1141,7 @@ class Game:
     #       -In Turn Based combat, damage calculation is done (depeneding on type of attack) using stats from both Alimons (Attack, Defense, Sp.Atk, Sp.Def)
     #   TODO: Fix damage calculations, Apply stat change effects
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    def battle(self, trainer_alimon, opp_alimon):
-        turns = 0
+    def battle(self, trainer_alimon, opp_alimon, turn):
         num_of_menu_choices = 4
         choice_num = 1
         select_num = 1
@@ -1376,7 +1390,51 @@ class Game:
 
     #TODO: Finish EXP calculation function
     def exp_calculations(self, list_of_alimons_battled, opp_alimon, turns):
-        pass
+        #EXP Calc = ((base-XP * level of Oppmon)/5 * (1/length of list of alimons battled) *
+        for alimon in list_of_alimons_battled:
+            exp = (alimon.base_xp_rate * opp_alimon.level) * (1/len(list_of_alimons_battled))
+            print(exp)
+            time.sleep(2)
+            os.system('cls')
+            print("{alimon} gained {exp} exp!".format(alimon=alimon.name, exp=exp))
+            time.sleep(2)
+            os.system('cls')
+
+            alimon.exp += round(exp)
+            while(alimon.exp >= alimon.xp_needed_for_next_level):
+                alimon.update_xp_needed()
+                alimon.level += 1
+                print("{alimon} leveled up to {level}!".format(alimon=alimon.name, level=alimon.level))
+                time.sleep(2)
+                os.system('cls')
+                print(type(alimon.stat_growth_rate[0]))
+                new_hp = alimon.stats["health"] + (alimon.stats["health"] * float(alimon.stat_growth_rate[0]))
+                new_atk = alimon.stats["attack"] + (alimon.stats["attack"] * float(alimon.stat_growth_rate[1]))
+                new_def = alimon.stats["defense"] + (alimon.stats["defense"] * float(alimon.stat_growth_rate[2]))
+                new_spatk = alimon.stats["sp.atk"] + (alimon.stats["sp.atk"] * float(alimon.stat_growth_rate[3]))
+                new_spdef = alimon.stats["sp.def"] + (alimon.stats["sp.def"] * float(alimon.stat_growth_rate[4]))
+                new_accuracy = alimon.stats["accuracy"] + (alimon.stats["accuracy"] * float(alimon.stat_growth_rate[5]))
+                new_speed = alimon.stats["speed"] + (alimon.stats["speed"] * float(alimon.stat_growth_rate[6]))
+                print("HP: {curr_hp} --> HP: {new_hp}".format(curr_hp= alimon.stats["health"], new_hp=int(new_hp)))
+                print("Attack: {curr_atk} --> Attack: {new_atk}".format(curr_atk=alimon.stats["attack"], new_atk=int(new_atk)))
+                print("Defense: {curr_def} --> Defense: {new_def}".format(curr_def=alimon.stats["defense"], new_def=int(new_def)))
+                print("Sp.Atk: {curr_spatk} --> Sp.Atk: {new_spatk}".format(curr_spatk=alimon.stats["sp.atk"], new_spatk=int(new_spatk)))
+                print("Sp.Def: {curr_spdef} --> Sp.Def: {new_spdef}".format(curr_spdef=alimon.stats["sp.def"], new_spdef=int(new_spdef)))
+                print("Accuracy: {curr_acc} --> Accuracy: {new_acc}".format(curr_acc=alimon.stats["accuracy"], new_acc=int(new_accuracy)))
+                print("Speed: {curr_speed} --> Speed: {new_speed}".format(curr_speed=alimon.stats["speed"], new_speed=int(new_speed)))
+                alimon.stats["health"] = new_hp
+                alimon.stats["attack"] = new_atk
+                alimon.stats["defense"] = new_def
+                alimon.stats["sp.atk"] = new_spatk
+                alimon.stats["sp.def"] = new_spdef
+                alimon.stats["accuracy"] = new_accuracy
+                alimon.stats["speed"] = new_speed
+
+
+                time.sleep(2)
+                os.system('cls')
+
+
 
 
     # -------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1396,14 +1454,15 @@ class Game:
         is_shiny = self.random_choice([True, False], [encountered_alimon.shiny_rate, 1 - encountered_alimon.shiny_rate], 1)
         level = self.random_choice(range(1, 51), None, 1)
         stats = {"health":0,"attack":0,"defense":0,"sp.atk":0,"speed":0,"accuracy":0}
-        stats["health"] = (int(encountered_alimon.stats["health"]) + round(int(encountered_alimon.stats["health"]) * float(encountered_alimon.growth_rate[0]) * (int(level[0])/10)))
-        stats["attack"] = (int(encountered_alimon.stats["attack"]) + round(int(encountered_alimon.stats["attack"]) * float(encountered_alimon.growth_rate[1]) * int(level[0])/10))
-        stats["defense"] = (int(encountered_alimon.stats["defense"]) + round(int(encountered_alimon.stats["defense"]) * float(encountered_alimon.growth_rate[2]) * int(level[0])/10))
-        stats["sp.atk"] = (int(encountered_alimon.stats["sp.atk"]) + round(int(encountered_alimon.stats["sp.atk"]) * float(encountered_alimon.growth_rate[3]) * int(level[0])/10))
-        stats["sp.def"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[4]) * int(level[0])/10))
-        stats["speed"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[5]) * int(level[0])/10))
-        stats["accuracy"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.growth_rate[6]) * int(level[0])/10))
+        print(encountered_alimon.stats)
+        stats["health"] = (int(encountered_alimon.stats["health"]) + round(int(encountered_alimon.stats["health"]) * float(encountered_alimon.stat_growth_rate[0]) * (int(level[0])/10)))
+        stats["attack"] = (int(encountered_alimon.stats["attack"]) + round(int(encountered_alimon.stats["attack"]) * float(encountered_alimon.stat_growth_rate[1]) * int(level[0])/10))
+        stats["defense"] = (int(encountered_alimon.stats["defense"]) + round(int(encountered_alimon.stats["defense"]) * float(encountered_alimon.stat_growth_rate[2]) * int(level[0])/10))
+        stats["sp.atk"] = (int(encountered_alimon.stats["sp.atk"]) + round(int(encountered_alimon.stats["sp.atk"]) * float(encountered_alimon.stat_growth_rate[3]) * int(level[0])/10))
+        stats["sp.def"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.stat_growth_rate[4]) * int(level[0])/10))
+        stats["speed"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.stat_growth_rate[5]) * int(level[0])/10))
+        stats["accuracy"] = (int(encountered_alimon.stats["sp.def"]) + round(int(encountered_alimon.stats["sp.def"]) * float(encountered_alimon.stat_growth_rate[6]) * int(level[0])/10))
         attack_list = ["headbutt","hate raid","--","--"]
         currenthp = stats["health"]
-        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate,stats=stats,level= level[0], growth_rate=encountered_alimon.growth_rate, attack_list=attack_list, is_shiny=is_shiny[0], currenthp=currenthp)
+        new_alimon = Alimon(encountered_alimon.name, self.ali_list[encountered_alimon.name].capture_rate,self.ali_list[encountered_alimon.name].encounter_rate,float(self.ali_list[encountered_alimon.name].base_xp_rate),self.ali_list[encountered_alimon.name].xp_growth_rate,stats=stats,level= int(level[0]), stat_growth_rate=encountered_alimon.stat_growth_rate, attack_list=attack_list, is_shiny=is_shiny[0], currenthp=currenthp)
         return new_alimon
